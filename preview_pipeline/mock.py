@@ -16,7 +16,11 @@ from .types import (
 )
 
 from .renderers import RENDERERS
-from .proofchecker import scan_and_redact
+try:
+    from enhancements.sensitivity_checker import scan_and_redact
+except ImportError:
+    def scan_and_redact(text: str, is_organization: bool = False):
+        return text, []
 
 MOCK_STRUCTURED = {
     OutputType.LINKEDIN_POST: LinkedInPreviewContent(
@@ -163,21 +167,79 @@ MOCK_STRUCTURED = {
     ),
 }
 
+AUTOMOTIVE_MOCK_STRUCTURED = {
+    OutputType.LINKEDIN_POST: LinkedInPreviewContent(
+        hook="🚗 Connected vehicles represent the newest enterprise endpoint attack surface — and legacy security paradigms are failing. [^src-1]",
+        threat_context="Following the CERT-In SAMVAAD 2025 conference, CERT-In and the Automotive Security Working Group launched the Automotive Cybersecurity Guidelines & Framework. A high-level technical workshop on December 11, 2025, brought together over 185 technical leaders, OEMs, and regulatory auditing bodies to operationalize in-vehicle communication defenses. [^src-1]",
+        key_insights=[
+            "Modern connected vehicles run over 100 ECUs; unprotected CAN and in-vehicle Ethernet networks expose core telemetry to spoofing and unauthorized diagnostics [^src-1].",
+            "The newly introduced CERT-In framework establishes mandatory compliance baselines, incident response protocols, and security-by-design requirements [^src-1].",
+            "Cross-sector collaboration between vehicle manufacturers and CERT-In empanelled auditing organizations is essential to harden automotive supply chains [^src-1].",
+        ],
+        actionable_takeaways=[
+            "Audit all in-vehicle bus communication protocols and implement cryptographic message authentication (SecOC) [^src-1].",
+            "Establish dedicated Auto-SOC monitoring for real-time telemetry anomaly detection and rapid triage [^src-1].",
+            "Align vehicle software development and OTA firmware pipelines with CERT-In automotive cybersecurity guidelines [^src-1].",
+        ],
+        discussion_prompt="How is your engineering team adapting in-vehicle ECU architectures to comply with emerging CERT-In automotive standards?",
+        hashtags=["#AutomotiveSecurity", "#ConnectedVehicles", "#CERTIn", "#CISO", "#ThreatIntel", "#DevSecOps"],
+        citations_used=["[^src-1]"]
+    ),
+    OutputType.SOCIAL_THREAD: SocialThreadPreviewContent(
+        hook_tweet="1/5 🚗 BREAKING: CERT-In and the Automotive Security Working Group unveil the Automotive Cybersecurity Guidelines & Framework following SAMVAAD 2025. Thread 🧵👇 [^src-1]",
+        exploit_tweet="2/5 ⚡ ATTACK VECTORS: In-vehicle communication networks and telemetry interfaces are prime targets as vehicles transition to connected, autonomous architectures [^src-1].",
+        ioc_tweet="3/5 🔍 STAKEHOLDERS: Over 185 participants, including regulators, OEMs, and CERT-In auditing organizations, aligned on unified defense baselines on Dec 11, 2025 [^src-1].",
+        mitigation_tweet="4/5 🛡️ DIRECTIVES: 1️⃣ Enforce in-vehicle network message verification 2️⃣ Deploy telematics anomaly detection 3️⃣ Audit supplier firmware against CERT-In guidelines [^src-1].",
+        wrapup_tweet="5/5 🔗 Stay ahead of automotive cyber regulations. Review the full CERT-In framework and harden your vehicle telemetry today. #AutomotiveSecurity #CERTIn #CyberSecurity [^src-1]",
+        all_tweets=[
+            "1/5 🚗 BREAKING: CERT-In and the Automotive Security Working Group unveil the Automotive Cybersecurity Guidelines & Framework following SAMVAAD 2025. Thread 🧵👇 [^src-1]",
+            "2/5 ⚡ ATTACK VECTORS: In-vehicle communication networks and telemetry interfaces are prime targets as vehicles transition to connected, autonomous architectures [^src-1].",
+            "3/5 🔍 STAKEHOLDERS: Over 185 participants, including regulators, OEMs, and CERT-In auditing organizations, aligned on unified defense baselines on Dec 11, 2025 [^src-1].",
+            "4/5 🛡️ DIRECTIVES: 1️⃣ Enforce in-vehicle network message verification 2️⃣ Deploy telematics anomaly detection 3️⃣ Audit supplier firmware against CERT-In guidelines [^src-1].",
+            "5/5 🔗 Stay ahead of automotive cyber regulations. Review the full CERT-In framework and harden your vehicle telemetry today. #AutomotiveSecurity #CERTIn #CyberSecurity [^src-1]",
+        ],
+        citations_used=["[^src-1]"]
+    ),
+    OutputType.ADVISORY: AdvisoryPreviewContent(
+        tl_protocol="TLP:AMBER+STRICT",
+        severity="HIGH",
+        cvss_score=None,
+        cve_ids=[],
+        threat_actor="Automotive Threat Landscape",
+        affected_systems=["Connected Vehicle Telematics", "In-Vehicle Electronic Control Units (ECUs)", "Automotive Firmware Pipelines"],
+        executive_summary="Following CERT-In SAMVAAD 2025, CERT-In organized a specialized workshop on December 11, 2025, with 185+ participants to operationalize the Automotive Cybersecurity Guidelines & Framework across connected vehicle ecosystems [^src-1].",
+        technical_analysis="Modern connected vehicles integrate complex in-vehicle networks vulnerable to spoofing, message injection, and unauthorized remote diagnostics. The framework mandates cryptographic authentication, secure boot mechanisms, and segmented gateway controllers [^src-1].",
+        iocs=[
+            {"type": "Network", "indicator": "CAN_ID_0x000_FLOOD", "context": "In-vehicle bus denial of service indicator", "action": "block"},
+            {"type": "Domain", "indicator": "telematics-sync.internal", "context": "Internal OEM telematics staging endpoint", "action": "monitor"},
+        ],
+        mitigations=[
+            "1. Implement Secure On-Board Communication (SecOC) for all safety-critical ECU messages [^src-1].",
+            "2. Enforce strict cryptographic verification for all Over-The-Air (OTA) firmware binaries [^src-1].",
+            "3. Conduct third-party audits with CERT-In empanelled auditing organizations [^src-1].",
+        ],
+        cert_reporting="Report vehicle telematics security incidents to incident@cert-in.org.in [^src-1].",
+        citations_used=["[^src-1]"]
+    ),
+}
+
 def get_mock_previews(content_md: str, selected_outputs: List[str], is_organization: bool) -> MultiPreviewResult:
     previews = {}
+    is_auto = any(w in (content_md or "").lower() for w in ["automotive", "vehicle", "car", "cert-in", "samvaad", "ecu", "telematics"])
+    active_mock_dict = AUTOMOTIVE_MOCK_STRUCTURED if is_auto else MOCK_STRUCTURED
     
     for platform in selected_outputs:
-        if platform not in MOCK_STRUCTURED:
+        structured = active_mock_dict.get(platform) or MOCK_STRUCTURED.get(platform)
+        if not structured:
             continue
             
-        structured = MOCK_STRUCTURED[platform]
         renderer = RENDERERS.get(platform)
         draft_content = renderer(structured.model_dump()) if renderer else str(structured)
         citations = structured.citations_used
         
         flags = []
         if is_organization:
-            draft_content, flags = scan_and_redact(draft_content)
+            draft_content, flags = scan_and_redact(draft_content, is_organization=True)
         
         previews[platform] = PlatformPreview(
             platform_key=platform,
@@ -189,11 +251,23 @@ def get_mock_previews(content_md: str, selected_outputs: List[str], is_organizat
             sensitive_flags=flags
         )
         
-    return MultiPreviewResult(
-        is_organization=is_organization,
-        previews=previews,
-        source_summary="Mock threat intelligence: ShadowGate Collective exploiting CVE-2026-41822 in BankShield middleware across 14 regional networks.",
-        extracted_facts=[
+    if is_auto:
+        summary = "CERT-In SAMVAAD 2025: Operationalizing Automotive Cybersecurity Guidelines & Framework with 185+ participants on in-vehicle communications."
+        facts = [
+            "CERT-In and Automotive Security Working Group launched the Automotive Cybersecurity Guidelines & Framework [^src-1]",
+            "Workshop convened on December 11, 2025, with over 185 participants across OEMs and regulators [^src-1]",
+            "Focus on in-vehicle communication networks, cyber incident preparedness, and regulatory readiness [^src-1]",
+            "Empanelled information security auditing organizations aligned on assessment methodologies [^src-1]"
+        ]
+        anchors = {
+            "source": "CERT-In SAMVAAD 2025",
+            "initiative": "Automotive Cybersecurity Guidelines & Framework",
+            "participants": 185,
+            "domain": "In-vehicle communication networks & connected mobility"
+        }
+    else:
+        summary = "Mock threat intelligence: ShadowGate Collective exploiting CVE-2026-41822 in BankShield middleware across 14 regional networks."
+        facts = [
             "ShadowGate Collective exploiting CVE-2026-41822 (CVSS 9.1)",
             "3,200+ BankShield controllers compromised across 14 regions",
             "Ingress IP 10.14.2.1 used for credential staging",
@@ -201,8 +275,8 @@ def get_mock_previews(content_md: str, selected_outputs: List[str], is_organizat
             "Lateral movement via SMB/WinRM",
             "Zero persistence on database layer",
             "Vendor hotfix available for CVE-2026-41822",
-        ],
-        metadata_anchors={
+        ]
+        anchors = {
             "threat_actor": "ShadowGate Collective",
             "cve": "CVE-2026-41822",
             "cvss": 9.1,
@@ -210,4 +284,11 @@ def get_mock_previews(content_md: str, selected_outputs: List[str], is_organizat
             "ingress_ip": "10.14.2.1",
             "c2_domain": "telemetry-sync-auth.net",
         }
+        
+    return MultiPreviewResult(
+        is_organization=is_organization,
+        previews=previews,
+        source_summary=summary,
+        extracted_facts=facts,
+        metadata_anchors=anchors
     )

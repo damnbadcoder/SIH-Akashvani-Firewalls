@@ -4,6 +4,7 @@ import Markdown from "../components/Markdown";
 import {
   generateDeliverable,
   generatePlan,
+  proofcheckPreviewDraft,
   regenerateDeliverable,
 } from "../lib/mock";
 import {
@@ -22,6 +23,7 @@ import type {
   Generation,
   GenerationParams,
   OutputTypeId,
+  PlatformPreview,
   User,
 } from "../lib/types";
 
@@ -56,8 +58,13 @@ export default function Dashboard() {
   const [sourceTab, setSourceTab] = useState<"text" | "files" | "links">("text");
   const [sourceText, setSourceText] = useState("");
   const [fileNames, setFileNames] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [links, setLinks] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const [isOrganisation, setIsOrganisation] = useState<boolean>(() => {
+    return user?.userType === "Organisation";
+  });
 
   const [selected, setSelected] = useState<Set<OutputTypeId>>(new Set());
   const [paramsByType, setParamsByType] = useState<Partial<Record<OutputTypeId, GenerationParams>>>({});
@@ -67,8 +74,13 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
   const [previewsByType, setPreviewsByType] = useState<Partial<Record<OutputTypeId, string>>>({});
+  const [previewsData, setPreviewsData] = useState<Record<string, PlatformPreview>>({});
+  const [groundingMd, setGroundingMd] = useState<string>("");
+  const [groundingJson, setGroundingJson] = useState<any>(null);
   const [activePreviewId, setActivePreviewId] = useState<OutputTypeId | null>(null);
   const [previewCitations, setPreviewCitations] = useState<Citation[]>([]);
+  const [previewViewMode, setPreviewViewMode] = useState<"edit" | "preview">("edit");
+  const [proofchecking, setProofchecking] = useState<boolean>(false);
   const [gen, setGen] = useState<Generation | null>(null);
   const [activeId, setActiveId] = useState<OutputTypeId | null>(null);
   const [history, setHistory] = useState<Generation[]>(loadHistory);
@@ -102,18 +114,23 @@ export default function Dashboard() {
   function startNewTransformation() {
     setGen(null);
     setPreviewsByType({});
+    setPreviewsData({});
     setActivePreviewId(null);
     setSelected(new Set());
     setParamsByType({});
     setOpenParams(null);
     setSourceText("");
     setFileNames([]);
+    setUploadedFiles([]);
     setLinks("");
     setPreviewCitations([]);
+    setGroundingMd("");
+    setGroundingJson(null);
     setEditing(false);
     setDraft("");
     setRefinement("");
     setGenError("");
+    setPreviewViewMode("edit");
   }
 
   function paramsFor(id: OutputTypeId): GenerationParams {
@@ -162,7 +179,7 @@ export default function Dashboard() {
   async function createPreview() {
     setGenError("");
     const hasText = sourceText.trim().length > 0;
-    const hasFiles = fileNames.length > 0;
+    const hasFiles = fileNames.length > 0 || uploadedFiles.length > 0;
     const sourceLinks = links.split("\n").map((link) => link.trim()).filter(Boolean);
     if (!hasText && !hasFiles && sourceLinks.length === 0) {
       setGenError("Provide source content — paste text, upload files or add links.");
@@ -175,17 +192,24 @@ export default function Dashboard() {
 
     setPlanning(true);
     try {
+      const filesToPass = uploadedFiles.length > 0 ? uploadedFiles : fileNames;
       const result = await generatePlan(
         sourceText,
-        fileNames,
+        filesToPass,
         sourceLinks,
-        Array.from(selected).map((id) => ({ id, params: paramsFor(id) }))
+        Array.from(selected).map((id) => ({ id, params: paramsFor(id) })),
+        isOrganisation
       );
       setPreviewsByType(result.previewsByType);
+      setPreviewsData(result.previews || {});
+      setGroundingMd(result.groundingMd || sourceText);
+      setGroundingJson(result.groundingJson || null);
       const first = Array.from(selected)[0];
       setActivePreviewId(first);
       setPreviewCitations(result.citations);
       setGen(null);
+    } catch (err: any) {
+      setGenError(err?.message || "Failed to generate previews. Please ensure the backend server is running.");
     } finally {
       setPlanning(false);
     }
@@ -199,10 +223,67 @@ export default function Dashboard() {
     }));
   }
 
+  async function toggleOrganisationMode(enabled: boolean) {
+    setIsOrganisation(enabled);
+    if (!isPreviewStage) return;
+
+    setProofchecking(true);
+    try {
+      const updated: Partial<Record<OutputTypeId, string>> = { ...previewsByType };
+      for (const id of selected) {
+        const text = previewsByType[id] || "";
+        if (enabled) {
+          const res = await proofcheckPreviewDraft(text, groundingMd, groundingJson);
+          updated[id] = res.auditedText;
+        } else {
+          // Remove sensitive tags when switching back to Normal mode
+          const clean = text
+            .replace(/^>\s*⚠️\s*\*\*ORGANISATION.*?\n\n/s, "")
+            .replace(/<span style="color: red; font-weight: bold;">\[SENSITIVE:\s*([^\(]+?)(?:\s*\([^\)]+\))?\]<\/span>/g, "$1");
+          updated[id] = clean;
+        }
+      }
+      setPreviewsByType(updated);
+    } finally {
+      setProofchecking(false);
+    }
+  }
+
+  async function rerunProofcheck() {
+    if (!currentPreviewId || !previewsByType[currentPreviewId]) return;
+    setProofchecking(true);
+    try {
+      const res = await proofcheckPreviewDraft(
+        previewsByType[currentPreviewId],
+        groundingMd,
+        groundingJson
+      );
+      setPreviewsByType((prev) => ({
+        ...prev,
+        [currentPreviewId]: res.auditedText,
+      }));
+    } finally {
+      setProofchecking(false);
+    }
+  }
+
   async function finalizeGeneration() {
     setGenError("");
     setGenerating(true);
     const sourceLinks = links.split("\n").map((link) => link.trim()).filter(Boolean);
+
+    // If Organisation mode is active, run pre-final proofcheck pass on the current draft
+    const verifiedPreviews: Partial<Record<OutputTypeId, string>> = { ...previewsByType };
+    if (isOrganisation && currentPreviewId && verifiedPreviews[currentPreviewId]) {
+      const checked = await proofcheckPreviewDraft(
+        verifiedPreviews[currentPreviewId]!,
+        groundingMd,
+        groundingJson
+      );
+      verifiedPreviews[currentPreviewId] = checked.auditedText;
+      setPreviewsByType(verifiedPreviews);
+    }
+
     const g: Generation = {
       id: crypto.randomUUID(),
       createdAt: Date.now(),
@@ -212,10 +293,14 @@ export default function Dashboard() {
       paramsByType: Object.fromEntries(
         Array.from(selected).map((id) => [id, paramsFor(id)])
       ) as Record<OutputTypeId, GenerationParams>,
-      previewsByType: { ...previewsByType },
-      plan: currentPreviewId ? previewsByType[currentPreviewId] : "",
+      previewsByType: { ...verifiedPreviews },
+      previews: { ...previewsData },
+      plan: currentPreviewId ? verifiedPreviews[currentPreviewId] : "",
       citations: previewCitations,
       deliverables: [],
+      groundingMd,
+      groundingJson,
+      isOrganisation,
     };
 
     try {
@@ -225,7 +310,10 @@ export default function Dashboard() {
           id,
           sourceText,
           paramsFor(id),
-          previewsByType[id]
+          verifiedPreviews[id],
+          isOrganisation,
+          groundingMd,
+          groundingJson
         );
         g.deliverables.push({ outputType: id, content, retries: 0 });
         setGen({ ...g, deliverables: [...g.deliverables] });
@@ -236,6 +324,7 @@ export default function Dashboard() {
       setHistory(nextHistory);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
       setPreviewsByType({});
+      setPreviewsData({});
       setActivePreviewId(null);
       setPreviewCitations([]);
       setOpenParams(null);
@@ -408,9 +497,40 @@ export default function Dashboard() {
             {sourceTab === "files" && (
               <div className="dropzone">
                 <button className="ghost" onClick={() => fileInput.current?.click()}>Attach files</button>
-                <input ref={fileInput} type="file" multiple hidden accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm" onChange={(e) => setFileNames((prev) => [...new Set([...prev, ...Array.from(e.target.files ?? []).map((file) => file.name)])])} />
-                <p className="muted">PDF · DOCX · images · video · plain text</p>
-                {fileNames.length > 0 && <ul className="file-list">{fileNames.map((name) => <li key={name}>{name}<button className="x" onClick={() => setFileNames((prev) => prev.filter((item) => item !== name))}>×</button></li>)}</ul>}
+                <input
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  hidden
+                  accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm,.wav,.mp3"
+                  onChange={(e) => {
+                    const newFiles = Array.from(e.target.files ?? []);
+                    setFileNames((prev) => [...new Set([...prev, ...newFiles.map((file) => file.name)])]);
+                    setUploadedFiles((prev) => {
+                      const existingNames = new Set(prev.map((f) => f.name));
+                      return [...prev, ...newFiles.filter((f) => !existingNames.has(f.name))];
+                    });
+                  }}
+                />
+                <p className="muted">PDF · DOCX · images · video · audio · plain text</p>
+                {fileNames.length > 0 && (
+                  <ul className="file-list">
+                    {fileNames.map((name) => (
+                      <li key={name}>
+                        {name}
+                        <button
+                          className="x"
+                          onClick={() => {
+                            setFileNames((prev) => prev.filter((item) => item !== name));
+                            setUploadedFiles((prev) => prev.filter((f) => f.name !== name));
+                          }}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
             {sourceTab === "links" && <textarea className="source-text" placeholder={"https://example.org/threat-report\nhttps://news.example.com/breach"} value={links} onChange={(e) => setLinks(e.target.value)} rows={6} />}
@@ -455,6 +575,36 @@ export default function Dashboard() {
                 <h2 className="col-title">
                   3 · Parameters {activeParamId ? `— ${outputTypeLabel(activeParamId)}` : ""}
                 </h2>
+              </div>
+
+              <div className="mode-toggle-card">
+                <div className="mode-toggle-header">
+                  <strong>Auditing & Verification Mode</strong>
+                  <span className={`mode-badge ${isOrganisation ? "org" : "normal"}`}>
+                    {isOrganisation ? "Organisation Active" : "Normal Mode"}
+                  </span>
+                </div>
+                <div className="segmented full">
+                  <button
+                    type="button"
+                    className={isOrganisation ? "on" : ""}
+                    onClick={() => toggleOrganisationMode(true)}
+                  >
+                    🏢 Organisation
+                  </button>
+                  <button
+                    type="button"
+                    className={!isOrganisation ? "on" : ""}
+                    onClick={() => toggleOrganisationMode(false)}
+                  >
+                    👤 Normal / Someone
+                  </button>
+                </div>
+                <p className="mode-hint">
+                  {isOrganisation
+                    ? "🛡️ Secondary proofchecking active: Scans and highlights operational leaks (internal IPs, credentials, classified entities, PII) in red before final deliverable generation."
+                    : "Standard synthesis: Direct blueprint without sensitive highlight inspection."}
+                </p>
               </div>
 
               {selected.size === 0 ? (
@@ -626,17 +776,75 @@ export default function Dashboard() {
                     </div>
                   )}
 
+                  {isOrganisation && (
+                    <div className="audit-alert-banner">
+                      <span>
+                        🛡️ <strong>Organisation Sensitivity Audit:</strong> Operational data (internal IPs, credentials, classified entities, PII) flagged in <strong style={{ color: "#ff4d4f" }}>red</strong>. Review and redact before final deliverable generation.
+                      </span>
+                      <button
+                        type="button"
+                        className="ghost sm"
+                        onClick={rerunProofcheck}
+                        disabled={proofchecking}
+                      >
+                        {proofchecking ? "Proofchecking…" : "Re-check Sensitive Data"}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="preview-toolbar">
                     <span className="muted">
                       Tailored blueprint for <strong>{currentPreviewId ? outputTypeLabel(currentPreviewId) : "deliverable"}</strong>
                     </span>
+                    <div className="preview-actions">
+                      <div className="segmented">
+                        <button
+                          type="button"
+                          className={isOrganisation ? "on" : ""}
+                          onClick={() => toggleOrganisationMode(true)}
+                          title="Organisation mode with sensitive data proofchecking"
+                        >
+                          🏢 Org
+                        </button>
+                        <button
+                          type="button"
+                          className={!isOrganisation ? "on" : ""}
+                          onClick={() => toggleOrganisationMode(false)}
+                          title="Normal mode"
+                        >
+                          👤 Normal
+                        </button>
+                      </div>
+                      <div className="segmented">
+                        <button
+                          type="button"
+                          className={previewViewMode === "edit" ? "on" : ""}
+                          onClick={() => setPreviewViewMode("edit")}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className={previewViewMode === "preview" ? "on" : ""}
+                          onClick={() => setPreviewViewMode("preview")}
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <textarea
-                    className="md-editor preview-editor"
-                    value={currentPreviewId ? previewsByType[currentPreviewId] ?? "" : ""}
-                    onChange={(e) => updateActivePreview(e.target.value)}
-                  />
+                  {previewViewMode === "edit" ? (
+                    <textarea
+                      className="md-editor preview-editor"
+                      value={currentPreviewId ? previewsByType[currentPreviewId] ?? "" : ""}
+                      onChange={(e) => updateActivePreview(e.target.value)}
+                    />
+                  ) : (
+                    <div className="preview-rendered-pane">
+                      <Markdown content={currentPreviewId ? previewsByType[currentPreviewId] ?? "" : ""} />
+                    </div>
+                  )}
 
                   <div className="citation-box">
                     <strong>Suggested citations</strong>
@@ -656,8 +864,8 @@ export default function Dashboard() {
                     disabled={generating}
                   >
                     {generating
-                      ? "Generating deliverables…"
-                      : `Done — generate deliverables${selected.size > 1 ? ` (${selected.size} formats)` : ""}`}
+                      ? "Writing final deliverables…"
+                      : `Write Final Deliverables${selected.size > 1 ? ` (${selected.size} formats)` : ""}`}
                   </button>
                 </div>
               )}

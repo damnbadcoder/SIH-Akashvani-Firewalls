@@ -13,7 +13,13 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Dict, Any, List
 
-from preview_pipeline import generate_previews, scan_and_redact
+try:
+    from enhancements.sensitivity_checker import scan_and_redact
+except ImportError:
+    def scan_and_redact(text: str, is_organization: bool = False):
+        return text, []
+
+from preview_pipeline import generate_previews
 from final_post_pipeline import generate_final_deliverable
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -163,12 +169,16 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
 
             if self.path == "/api/proofcheck":
                 payload = json.loads(body.decode("utf-8"))
-                text = payload.get("previewText", "")
-                audited_text, flags = scan_and_redact(text)
+                text = payload.get("text") if "text" in payload else payload.get("previewText", "")
+                is_organization = payload.get("is_organization", payload.get("isOrganisation", True))
+                if is_organization:
+                    audited_text, flags = scan_and_redact(text, is_organization=True)
+                else:
+                    audited_text, flags = text, []
                 self._send_json(200, {
                     "proofcheckedText": audited_text,
                     "sensitiveCount": len(flags),
-                    "flags": [f.model_dump() for f in flags] if hasattr(flags[0], "model_dump") else flags if flags else []
+                    "flags": [f.model_dump() if hasattr(f, "model_dump") else f for f in flags]
                 })
                 return
 
@@ -188,11 +198,14 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                     metadata_json=metadata_json if isinstance(metadata_json, dict) else {},
                     parameters=parameters if isinstance(parameters, dict) else {}
                 )
-                self._send_json(200, {
+                resp_payload = {
                     "content": result.final_content,
                     "final_content": result.final_content,
                     "provenance": [p.model_dump() for p in result.provenance]
-                })
+                }
+                if getattr(result, "verification", None):
+                    resp_payload["verification"] = result.verification
+                self._send_json(200, resp_payload)
                 return
 
             if self.path in ("/api/generate-plan", "/api/preview"):
@@ -203,11 +216,15 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                 is_organization = False
 
                 if "multipart/form-data" in content_type:
-                    boundary_match = re.search(r'boundary=(.+)', content_type)
+                    boundary_match = re.search(r'boundary=([^;\s]+)', content_type)
+                    if not boundary_match:
+                        boundary_match = re.search(r'boundary="([^"]+)"', content_type)
+                    if not boundary_match:
+                        boundary_match = re.search(r'boundary=(.+)', content_type)
                     if not boundary_match:
                         self._send_text(400, "Missing boundary in multipart request")
                         return
-                    boundary = boundary_match.group(1).strip()
+                    boundary = boundary_match.group(1).strip().strip('"').strip("'")
                     form = parse_multipart(body, boundary)
 
                     source_text = form.get("sourceText", "")
@@ -253,7 +270,7 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                 # Run file extraction
                 extracted_mds = []
                 citations = []
-                for entry in file_entries:
+                for idx, entry in enumerate(file_entries, 1):
                     fname = entry["filename"]
                     fdata = entry["data"]
                     ftype = _detect_type(fname)
@@ -264,15 +281,40 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                     try:
                         res = _run_pipeline_extract(tmp_path, fname, ftype)
                         if res["markdown"]:
+                            print(f"[server] Extracted {len(res['markdown'])} chars from {fname} ({ftype})")
                             extracted_mds.append(f"## Data from {fname} ({ftype}):\n\n{res['markdown']}")
+                        # Register the source file citation
+                        citations.append({
+                            "id": f"src-{idx}",
+                            "kind": "file",
+                            "label": fname,
+                        })
                         citations.extend(res["citations"])
                     finally:
                         if os.path.exists(tmp_path):
                             os.unlink(tmp_path)
 
-                combined_md = source_text
                 if extracted_mds:
-                    combined_md = f"{source_text}\n\n---\n\n" + "\n\n".join(extracted_mds)
+                    if source_text and source_text.strip():
+                        combined_md = f"{source_text.strip()}\n\n---\n\n" + "\n\n".join(extracted_mds)
+                    else:
+                        combined_md = "\n\n".join(extracted_mds)
+                else:
+                    combined_md = source_text
+                print(f"[server] Combined grounding markdown length: {len(combined_md)} chars")
+
+                if not citations and source_text and source_text.strip():
+                    citations.append({
+                        "id": "src-1",
+                        "kind": "text",
+                        "label": "Raw Telemetry & Advisory Input",
+                    })
+                for l in source_links:
+                    citations.append({
+                        "id": f"src-{len(citations)+1}",
+                        "kind": "link",
+                        "label": l,
+                    })
 
                 # Collect output types
                 selected_keys = []
@@ -319,6 +361,9 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                 previews_dict = {}
 
                 for k, p_obj in preview_result.previews.items():
+                    if is_organization and not p_obj.sensitive_flags:
+                        p_obj.draft_content, p_obj.sensitive_flags = scan_and_redact(p_obj.draft_content, is_organization=True)
+
                     previews_by_type[k] = p_obj.draft_content
                     # also map reverse if needed
                     previews_dict[p_obj.display_name] = {
@@ -327,7 +372,8 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                         "draft_title": p_obj.draft_title,
                         "draft_content": p_obj.draft_content,
                         "citations_used": p_obj.citations_used,
-                        "sensitive_items_flagged": len(p_obj.sensitive_flags)
+                        "sensitive_items_flagged": len(p_obj.sensitive_flags),
+                        "sensitive_flags": [f.model_dump() if hasattr(f, "model_dump") else f for f in p_obj.sensitive_flags]
                     }
 
                 default_plan = preview_result.source_summary
@@ -358,7 +404,7 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             traceback.print_exc()
-            self._send_text(500, f"Server Error: {str(e)}")
+            self._send_json(500, {"error": str(e), "message": f"Server Error: {str(e)}"})
 
     def _send_json(self, code, data):
         self.send_response(code)

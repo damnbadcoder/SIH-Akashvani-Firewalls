@@ -16,11 +16,17 @@ from .types import (
     PlaybookPreviewContent,
     PlatformPreviewContent,
 )
-from .proofchecker import scan_and_redact
+from .proofchecker import (
+    scan_and_redact,
+    DeterministicSensitivityScanner,
+    calculate_shannon_entropy,
+)
 
 __all__ = [
     "generate_previews",
     "scan_and_redact",
+    "DeterministicSensitivityScanner",
+    "calculate_shannon_entropy",
     "PlatformPreview",
     "MultiPreviewResult",
     "SensitiveDataFlag",

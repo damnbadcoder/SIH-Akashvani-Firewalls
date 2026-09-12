@@ -151,6 +151,15 @@ export interface Citation {
   kind: "file" | "link" | "text";
 }
 
+export interface PlatformPreview {
+  platform_key: string;
+  output_type_id?: OutputTypeId;
+  draft_title: string;
+  draft_content: string;
+  citations_used: string[];
+  sensitive_items_flagged?: number;
+}
+
 export interface Deliverable {
   outputType: OutputTypeId;
   content: string;
@@ -166,6 +175,10 @@ export interface Generation {
   paramsByType: Record<OutputTypeId, GenerationParams>;
   plan?: string;
   previewsByType?: Partial<Record<OutputTypeId, string>>;
+  previews?: Record<string, PlatformPreview>;
   citations: Citation[];
   deliverables: Deliverable[];
+  groundingMd?: string;
+  groundingJson?: any;
+  isOrganisation?: boolean;
 }
