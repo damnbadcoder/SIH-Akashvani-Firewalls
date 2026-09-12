@@ -17,7 +17,11 @@ def get_mock_pipeline_result(
     Generates a high-fidelity mock extraction matching the NIST Cybersecurity Framework specification.
     """
     title = "NIST Cybersecurity Framework Benefits Advisory"
+    title = "NIST Cybersecurity Framework Benefits Advisory"
     overview = "The NIST Cybersecurity Framework provides a comprehensive set of guidelines to help organizations manage and reduce cybersecurity risk [^src-1]."
+
+    from .schema import BoundingBox
+    from .extractors.ocr_utils import MOCK_NIST_CSF_BOXES
 
     anchors = [
         GroundingAnchor(
@@ -26,6 +30,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="NIST Cybersecurity framework benefits",
             category="CORE_CONCEPT",
             confidence=0.99,
+            bbox=BoundingBox(x=34.5, y=42.0, width=31.0, height=16.0, text="NIST Cybersecurity framework benefits"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
         GroundingAnchor(
             id="src-2",
@@ -33,6 +39,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="Risk Management: The framework provides a risk management approach to cybersecurity, enabling organizations to identify, assess, and manage cybersecurity risks.",
             category="BENEFIT",
             confidence=0.95,
+            bbox=BoundingBox(x=6.5, y=12.0, width=28.5, height=22.0, text="Risk Management"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
         GroundingAnchor(
             id="src-3",
@@ -40,6 +48,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="Improved Cybersecurity Posture: The NIST Cybersecurity Framework provides a structured approach to managing cybersecurity risks, helping organizations improve their cybersecurity posture.",
             category="BENEFIT",
             confidence=0.95,
+            bbox=BoundingBox(x=65.0, y=12.0, width=28.5, height=22.0, text="Improved Cybersecurity Posture"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
         GroundingAnchor(
             id="src-4",
@@ -47,6 +57,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="Common Language: The framework provides a common language and structure for discussing cybersecurity risks and controls, facilitating better communication among stakeholders.",
             category="BENEFIT",
             confidence=0.95,
+            bbox=BoundingBox(x=67.5, y=41.0, width=26.5, height=21.0, text="Common Language"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
         GroundingAnchor(
             id="src-5",
@@ -54,6 +66,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="Flexibility: The framework is flexible, allowing organizations to tailor it to their specific cybersecurity needs and requirements.",
             category="BENEFIT",
             confidence=0.95,
+            bbox=BoundingBox(x=65.0, y=68.0, width=28.5, height=22.0, text="Flexibility"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
         GroundingAnchor(
             id="src-6",
@@ -61,6 +75,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="Cost-Effective: The framework provides a cost-effective approach to cybersecurity by enabling organizations to focus their resources on the most critical risks and controls.",
             category="BENEFIT",
             confidence=0.95,
+            bbox=BoundingBox(x=6.5, y=68.0, width=28.5, height=22.0, text="Cost-Effective"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
         GroundingAnchor(
             id="src-7",
@@ -68,6 +84,8 @@ def get_mock_pipeline_result(
             extracted_verbatim="Compliance: The framework can be used to comply with various cybersecurity regulations and standards, such as the HIPAA, GDPR, and PCI-DSS.",
             category="BENEFIT",
             confidence=0.95,
+            bbox=BoundingBox(x=6.0, y=41.0, width=26.5, height=21.0, text="Compliance"),
+            all_boxes=MOCK_NIST_CSF_BOXES,
         ),
     ]
 
@@ -143,4 +161,5 @@ def get_mock_pipeline_result(
         execution_time_ms=execution_time_ms,
         mode="mock",
         model="offline-simulation-mock",
+        all_boxes=MOCK_NIST_CSF_BOXES,
     )

@@ -18,6 +18,7 @@ from pipelines.image_pipeline import (
     process_image_pipeline,
     PipelineResult as ImagePipelineResult,
     GroundingAnchor as ImageGroundingAnchor,
+    BoundingBox as ImageBoundingBox,
     ImageProvenance,
 )
 
@@ -116,6 +117,7 @@ __all__ = [
     "process_image_pipeline",
     "ImagePipelineResult",
     "ImageGroundingAnchor",
+    "ImageBoundingBox",
     "ImageProvenance",
     # Audio
     "AudioPipeline",

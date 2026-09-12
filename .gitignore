@@ -222,9 +222,13 @@ ingestion_outputs/
 **/test_outputs/
 storage/uploads/
 storage/previews/
+storage/renders/
+storage/links/
+storage/nist_csf_mock.png
 *.db
 transmute.db
 transmute.db-journal
 *.db-journal
+
 
 

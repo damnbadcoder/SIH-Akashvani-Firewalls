@@ -16,6 +16,8 @@ except ImportError:
     ingest_video = None
     ingest_link = None
 
+from backend.config import settings
+
 # 46 Supported File Formats categorized by media pipeline
 DOC_EXTS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".csv", ".tsv", ".txt", ".log", ".md", ".markdown", ".rtf"}
 WEB_EXTS = {".xml", ".rss", ".atom"}
@@ -55,7 +57,7 @@ class PipelineRouterService:
         return "text"
 
     @staticmethod
-    def process_file_into_context(file_path: str, filename: str) -> Dict[str, Any]:
+    def process_file_into_context(file_path: str, filename: str, session_id: str = "") -> Dict[str, Any]:
         ext = Path(filename).suffix.lower()
         pipeline_type = PipelineRouterService.detect_media_pipeline(filename)
 
@@ -66,23 +68,46 @@ class PipelineRouterService:
         try:
             # 1. Image Pipeline Routing (.png, .jpg, .jpeg, .webp, .svg, .tiff, .tif, .bmp)
             if pipeline_type == "image":
+                media_url = f"/api/pipeline/media/{session_id}/{filename}" if session_id else f"/api/pipeline/media/default/{filename}"
+                structured_metadata["media_url"] = media_url
+
                 if ext == ".svg":
                     try:
                         svg_text = Path(file_path).read_text(encoding="utf-8", errors="replace")
                         markdown = f"### SVG Vector Graphics Diagram: {filename}\n```xml\n{svg_text[:2000]}\n```"
-                        citations.append({"id": f"img-{filename}", "kind": "file", "label": f"[Vector Graphic] {filename}"})
+                        citations.append({
+                            "id": f"img-{filename}",
+                            "kind": "ocr",
+                            "label": f"[Vector Graphic] {filename}",
+                            "media_url": media_url,
+                            "bbox": {"x": 5.0, "y": 5.0, "width": 90.0, "height": 90.0},
+                        })
                     except Exception:
                         pass
                 if not markdown and ingest_image:
                     r = ingest_image(file_path)
                     markdown = r.markdown_output or ""
+                    all_boxes = getattr(r, "all_boxes", []) or []
+
                     for anchor in getattr(r, "grounding_sources", []):
+                        bbox = getattr(anchor, "bbox", None)
+                        bbox_dict = bbox.model_dump() if hasattr(bbox, "model_dump") else (bbox if isinstance(bbox, dict) else None)
+                        anchor_id = getattr(anchor, "id", f"img-{len(citations)+1}")
+                        clean_anchor_id = anchor_id.replace("^", "")
                         citations.append({
-                            "id": getattr(anchor, "id", f"img-{len(citations)+1}"),
-                            "kind": "file",
+                            "id": clean_anchor_id,
+                            "kind": "ocr",
                             "label": f"[{getattr(anchor, 'visual_anchor', filename)}] {getattr(anchor, 'extracted_verbatim', '')[:100]}",
+                            "bbox": bbox_dict,
+                            "media_url": media_url,
+                            "all_boxes": all_boxes,
                         })
-                    structured_metadata["grounding_sources"] = [a.model_dump() if hasattr(a, "model_dump") else str(a) for a in getattr(r, "grounding_sources", [])]
+
+                    structured_metadata["grounding_sources"] = [
+                        a.model_dump() if hasattr(a, "model_dump") else str(a)
+                        for a in getattr(r, "grounding_sources", [])
+                    ]
+                    structured_metadata["all_boxes"] = all_boxes
 
             # 2. Audio Pipeline Routing (.mp3, .wav, .m4a, .ogg, .flac)
             elif pipeline_type == "audio":
@@ -112,7 +137,7 @@ class PipelineRouterService:
 
             # 4. Text & Structured Data Pipeline Routing
             else:
-                markdown, citations, extra_meta = PipelineRouterService._process_text_and_cyber_formats(file_path, filename, ext)
+                markdown, citations, extra_meta = PipelineRouterService._process_text_and_cyber_formats(file_path, filename, ext, session_id=session_id)
                 structured_metadata.update(extra_meta)
 
         except Exception as e:
@@ -141,7 +166,7 @@ class PipelineRouterService:
         }
 
     @staticmethod
-    def _process_text_and_cyber_formats(file_path: str, filename: str, ext: str) -> Tuple[str, List[Dict[str, Any]], Dict[str, Any]]:
+    def _process_text_and_cyber_formats(file_path: str, filename: str, ext: str, session_id: str = "") -> Tuple[str, List[Dict[str, Any]], Dict[str, Any]]:
         markdown = ""
         citations = []
         meta = {}
@@ -272,6 +297,51 @@ class PipelineRouterService:
                         citations.append({"id": f"cve-{cve}", "kind": "file", "label": f"Vulnerability: {cve}"})
                     for ip in getattr(r.iocs, "ipv4_addresses", []):
                         citations.append({"id": f"ip-{ip}", "kind": "file", "label": f"IOC IP: {ip}"})
+
+                # Visual PDF Parsing: Render pages with visual diagrams/scans and extract coordinates
+                if ext == ".pdf":
+                    try:
+                        import pymupdf
+                        from pipelines.image_pipeline.extractors.ocr_utils import ImageOCRUtils
+                        doc = pymupdf.open(file_path)
+                        sess_token = session_id or "default"
+                        renders_dir = settings.RENDERS_DIR / sess_token
+                        renders_dir.mkdir(parents=True, exist_ok=True)
+
+                        for p_idx in range(len(doc)):
+                            page = doc[p_idx]
+                            raw_p_text = page.get_text().strip()
+                            page_imgs = page.get_images()
+
+                            # Hybrid Detection: If page has embedded diagrams or low selectable text (< 120 chars)
+                            if len(page_imgs) > 0 or len(raw_p_text) < 120:
+                                safe_stem = re.sub(r"[^\w\-]", "_", Path(filename).stem)
+                                render_filename = f"{safe_stem}_p{p_idx+1}.png"
+                                render_file = renders_dir / render_filename
+                                pix = page.get_pixmap(dpi=150)
+                                pix.save(str(render_file))
+
+                                # Run OCR coordinate detection on the rasterized page
+                                ocr_data = ImageOCRUtils.detect_ocr_boxes(str(render_file))
+                                p_boxes = ocr_data.get("boxes", [])
+                                rel_url = f"/api/pipeline/media/{sess_token}/renders/{render_filename}"
+
+                                top_bbox = p_boxes[0]["bbox"] if p_boxes else {"x": 5.0, "y": 5.0, "width": 90.0, "height": 90.0}
+                                top_text = p_boxes[0]["text"] if p_boxes else f"Visual Page {p_idx+1}"
+
+                                citations.append({
+                                    "id": f"pdf-vis-p{p_idx+1}",
+                                    "kind": "ocr",
+                                    "label": f"[Page {p_idx+1} Visual Diagram] {top_text[:75]}",
+                                    "bbox": top_bbox,
+                                    "media_url": rel_url,
+                                    "page_number": p_idx + 1,
+                                    "all_boxes": p_boxes,
+                                })
+                        doc.close()
+                    except Exception as pdf_err:
+                        print(f"[RouterService PDF Visual Parse Notice]: {pdf_err}")
+
                 return markdown, citations, meta
             except Exception:
                 pass

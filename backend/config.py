@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     UPLOADS_DIR: Path = BASE_DIR / "storage" / "uploads"
     PREVIEWS_DIR: Path = BASE_DIR / "storage" / "previews"
     LINKS_DIR: Path = BASE_DIR / "storage" / "links"
+    RENDERS_DIR: Path = BASE_DIR / "storage" / "renders"
 
     # LLM Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -51,3 +52,4 @@ settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 settings.PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
 settings.LINKS_DIR.mkdir(parents=True, exist_ok=True)
+settings.RENDERS_DIR.mkdir(parents=True, exist_ok=True)

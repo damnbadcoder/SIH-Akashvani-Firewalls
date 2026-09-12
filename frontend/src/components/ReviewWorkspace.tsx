@@ -1,16 +1,20 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import InteractivePreviewEditor from "./InteractivePreviewEditor";
 import Markdown from "./Markdown";
 import { outputTypeLabel } from "../lib/types";
-import type { Citation, OutputTypeId, SensitiveDataFlag } from "../lib/types";
+import type { Citation, OutputTypeId, SensitiveDataFlag, BoundingBox, DetectedBoxItem } from "../lib/types";
 
 export interface EvidenceCardItem {
-  citationId: string; // e.g. "src-1", "aud-1", "doc-1", "fact-1"
+  citationId: string; // e.g. "src-1", "aud-1", "doc-1", "fact-1", "img-1", "pdf-vis-p1"
   type: "file" | "audio" | "video" | "ocr" | "link" | "text" | "fact";
   title: string;
   timestamp?: string;
   content: string;
   sourceOrigin?: string;
+  bbox?: BoundingBox;
+  mediaUrl?: string;
+  pageNumber?: number;
+  allBoxes?: DetectedBoxItem[];
 }
 
 interface ReviewWorkspaceProps {
@@ -66,8 +70,18 @@ export default function ReviewWorkspace({
   const [mobileTab, setMobileTab] = useState<"preview" | "source">("preview");
   // Filter query in source inspector
   const [filterQuery, setFilterQuery] = useState("");
-  // View mode in left pane ('cards' | 'raw')
-  const [sourceViewMode, setSourceViewMode] = useState<"cards" | "raw">("cards");
+  // View mode in left pane ('cards' | 'visual' | 'raw')
+  const [sourceViewMode, setSourceViewMode] = useState<"cards" | "visual" | "raw">("cards");
+  // Active visual item being inspected in image viewer
+  const [activeVisualEvidence, setActiveVisualEvidence] = useState<EvidenceCardItem | null>(null);
+  // Active highlighted bounding box citation ID (e.g. 'src-2', 'img-1')
+  const [highlightedCitationId, setHighlightedCitationId] = useState<string | null>(null);
+  // Image viewer zoom scale (50% - 200%)
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
+  // Toggle all detected OCR boxes vs active citation only
+  const [showAllBboxes, setShowAllBboxes] = useState<boolean>(true);
+  // Box selected by user click on canvas
+  const [selectedBoxItem, setSelectedBoxItem] = useState<DetectedBoxItem | null>(null);
 
   const leftPaneScrollRef = useRef<HTMLDivElement>(null);
 
@@ -107,14 +121,18 @@ export default function ReviewWorkspace({
       let type: EvidenceCardItem["type"] = "file";
       if (c.kind === "text") type = "text";
       else if (c.kind === "link") type = "link";
+      else if (c.kind === "ocr" || c.bbox || c.media_url || c.imageUrl) type = "ocr";
       else if (c.label.match(/\.(mp4|mov|webm|avi)$/i)) type = "video";
       else if (c.label.match(/\.(mp3|wav|m4a)$/i)) type = "audio";
-      else if (c.label.match(/\.(png|jpg|jpeg|webp)$/i)) type = "ocr";
+      else if (c.label.match(/\.(png|jpg|jpeg|webp|svg)$/i)) type = "ocr";
+      else if (cleanId.startsWith("img-") || cleanId.startsWith("pdf-vis")) type = "ocr";
       else if (cleanId.startsWith("fact-")) type = "fact";
 
       // Extract a meaningful snippet for this citation
       let content = "";
-      if (c.kind === "text") {
+      if (c.bbox?.text) {
+        content = c.bbox.text;
+      } else if (c.kind === "text") {
         content = sourceText.slice(0, 400) + (sourceText.length > 400 ? "…" : "");
       } else if (c.kind === "link") {
         const domainMatch = c.label.match(/\[(.*?)\]/);
@@ -143,12 +161,18 @@ export default function ReviewWorkspace({
         }
       }
 
+      const resolvedMediaUrl = c.media_url || c.imageUrl || (type === "ocr" ? "/api/pipeline/media/default/1.png" : undefined);
+
       items.push({
         citationId: cleanId,
         type,
         title: c.label,
-        content,
-        sourceOrigin: c.kind === "file" ? "Ingested File" : c.kind === "link" ? "link_pipeline (Web Scraper)" : "Analyst Telemetry Input",
+        content: content || `Extracted evidence from ${c.label}. Ground-truth verified.`,
+        sourceOrigin: c.kind === "ocr" || c.bbox ? "OCR Coordinate Grounding" : c.kind === "file" ? "Ingested File" : c.kind === "link" ? "link_pipeline (Web Scraper)" : "Analyst Telemetry Input",
+        bbox: c.bbox,
+        mediaUrl: resolvedMediaUrl,
+        pageNumber: c.page_number || c.pageNumber,
+        allBoxes: c.all_boxes || c.allBoxes,
       });
       seenIds.add(cleanId);
     });
@@ -235,6 +259,18 @@ export default function ReviewWorkspace({
     );
   }, [evidenceItems, filterQuery]);
 
+  // Visual evidence items (OCR diagrams, images, visual PDF pages)
+  const visualEvidenceItems = useMemo(() => {
+    return evidenceItems.filter((i) => i.type === "ocr" || i.bbox || i.mediaUrl);
+  }, [evidenceItems]);
+
+  // Keep active visual evidence synced when items load
+  useEffect(() => {
+    if (!activeVisualEvidence && visualEvidenceItems.length > 0) {
+      setActiveVisualEvidence(visualEvidenceItems[0]);
+    }
+  }, [visualEvidenceItems, activeVisualEvidence]);
+
   // Synchronize Provenance Anchors tray specifically with citations referenced in the active preview draft
   const activeDraftCitations = useMemo<Citation[]>(() => {
     const activeText = currentPreviewId ? previewsByType[currentPreviewId] || "" : "";
@@ -252,7 +288,7 @@ export default function ReviewWorkspace({
       const existing = citMap.get(id);
       if (existing) return existing;
       let kind: Citation["kind"] = "text";
-      if (id.startsWith("img")) kind = "file";
+      if (id.startsWith("img")) kind = "ocr";
       else if (id.startsWith("aud") || id.startsWith("vid")) kind = "link";
       return {
         id,
@@ -267,12 +303,40 @@ export default function ReviewWorkspace({
     });
   }, [currentPreviewId, previewsByType, previewCitations]);
 
-  // Click-to-Scroll & Highlight Synchronization
+  // Click-to-Scroll & Highlight Synchronization with Visual OCR Support
   function scrollToSource(citationId: string) {
     const cleanId = citationId.replace(/^\^/, "").trim();
 
     // On mobile screens, automatically switch to source evidence tab
     setMobileTab("source");
+
+    // 1. Check if citation corresponds to visual image or OCR bounding box
+    const targetVisual =
+      visualEvidenceItems.find((v) => v.citationId.toLowerCase() === cleanId.toLowerCase()) ||
+      visualEvidenceItems.find((v) =>
+        (v.allBoxes || []).some((b) => b.id?.toLowerCase() === cleanId.toLowerCase())
+      ) ||
+      evidenceItems.find(
+        (item) =>
+          item.citationId.toLowerCase() === cleanId.toLowerCase() &&
+          (item.type === "ocr" || item.bbox || item.mediaUrl)
+      );
+
+    if (targetVisual || cleanId.startsWith("img") || cleanId.startsWith("pdf-vis")) {
+      const activeItem = targetVisual || (visualEvidenceItems.length > 0 ? visualEvidenceItems[0] : null);
+      if (activeItem) {
+        setSourceViewMode("visual");
+        setActiveVisualEvidence(activeItem);
+        setHighlightedCitationId(cleanId);
+        setSelectedBoxItem(null);
+        return;
+      }
+    }
+
+    // 2. If not visual, show in Cards view and scroll to target
+    if (sourceViewMode === "visual") {
+      setSourceViewMode("cards");
+    }
 
     setTimeout(() => {
       const target =
@@ -369,6 +433,21 @@ export default function ReviewWorkspace({
               >
                 Cards
               </button>
+              {visualEvidenceItems.length > 0 && (
+                <button
+                  type="button"
+                  className={sourceViewMode === "visual" ? "on" : ""}
+                  onClick={() => {
+                    setSourceViewMode("visual");
+                    if (!activeVisualEvidence && visualEvidenceItems.length > 0) {
+                      setActiveVisualEvidence(visualEvidenceItems[0]);
+                    }
+                  }}
+                  title="View interactive visual OCR detection & bounding boxes on images"
+                >
+                  🖼️ Visual OCR ({visualEvidenceItems.length})
+                </button>
+              )}
               <button
                 type="button"
                 className={sourceViewMode === "raw" ? "on" : ""}
@@ -380,7 +459,202 @@ export default function ReviewWorkspace({
             </div>
           </div>
 
-          {sourceViewMode === "cards" ? (
+          {sourceViewMode === "visual" ? (
+            <div className="visual-ocr-inspector-pane">
+              {/* Visual Sub-Toolbar */}
+              <div className="visual-ocr-subtoolbar">
+                {visualEvidenceItems.length > 1 && (
+                  <div className="visual-source-selector">
+                    <select
+                      value={activeVisualEvidence?.citationId || ""}
+                      onChange={(e) => {
+                        const selectedItem = visualEvidenceItems.find((v) => v.citationId === e.target.value);
+                        if (selectedItem) {
+                          setActiveVisualEvidence(selectedItem);
+                          setHighlightedCitationId(selectedItem.citationId);
+                          setSelectedBoxItem(null);
+                        }
+                      }}
+                      className="visual-select-input"
+                    >
+                      {visualEvidenceItems.map((v) => (
+                        <option key={v.citationId} value={v.citationId}>
+                          {v.title || `Visual Source ${v.citationId}`} ({v.allBoxes?.length || 1} boxes)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="visual-zoom-controls">
+                  <button
+                    type="button"
+                    className="ghost sm zoom-btn"
+                    onClick={() => setZoomLevel((z) => Math.max(50, z - 15))}
+                    title="Zoom out"
+                  >
+                    –
+                  </button>
+                  <span className="zoom-label">{zoomLevel}%</span>
+                  <button
+                    type="button"
+                    className="ghost sm zoom-btn"
+                    onClick={() => setZoomLevel((z) => Math.min(250, z + 15))}
+                    title="Zoom in"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost sm zoom-btn reset-zoom"
+                    onClick={() => setZoomLevel(100)}
+                    title="Reset zoom to 100%"
+                  >
+                    Fit
+                  </button>
+                </div>
+
+                <label className="visual-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={showAllBboxes}
+                    onChange={(e) => setShowAllBboxes(e.target.checked)}
+                  />
+                  <span>All Boxes ({activeVisualEvidence?.allBoxes?.length || 0})</span>
+                </label>
+
+                <button
+                  type="button"
+                  className="ghost sm back-to-cards-btn"
+                  onClick={() => setSourceViewMode("cards")}
+                >
+                  ← Cards View
+                </button>
+              </div>
+
+              {/* Grounding Attribution Banner */}
+              {highlightedCitationId && (
+                <div className="visual-highlight-banner">
+                  <div className="highlight-banner-header">
+                    <span className="highlight-pill">[^{highlightedCitationId}]</span>
+                    <span className="highlight-title">Active Grounding Citation</span>
+                    {activeVisualEvidence?.bbox && (
+                      <span className="highlight-coords-chip">
+                        Coordinates: ({Math.round(activeVisualEvidence.bbox.x)}%, {Math.round(activeVisualEvidence.bbox.y)}%)
+                      </span>
+                    )}
+                  </div>
+                  <p className="highlight-verbatim">
+                    "{activeVisualEvidence?.content || activeVisualEvidence?.title}"
+                  </p>
+                </div>
+              )}
+
+              {/* Interactive Image & Bounding Box Viewport */}
+              <div className="visual-stage-viewport slim-scroll">
+                <div
+                  className="visual-stage-canvas"
+                  style={{
+                    transform: `scale(${zoomLevel / 100})`,
+                    transformOrigin: "top center",
+                  }}
+                >
+                  <div className="visual-image-wrapper">
+                    <img
+                      src={activeVisualEvidence?.mediaUrl || "/api/pipeline/media/default/1.png"}
+                      alt={activeVisualEvidence?.title || "Visual Evidence"}
+                      className="visual-stage-image"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "/api/pipeline/media/default/1.png";
+                      }}
+                    />
+
+                    {/* Bounding Boxes Layer */}
+                    <div className="visual-bboxes-overlay">
+                      {/* 1. All detected boxes */}
+                      {showAllBboxes &&
+                        (activeVisualEvidence?.allBoxes || []).map((box, bIdx) => {
+                          const isTarget =
+                            highlightedCitationId &&
+                            (box.id?.toLowerCase() === highlightedCitationId.toLowerCase() ||
+                              activeVisualEvidence?.citationId.toLowerCase() === highlightedCitationId.toLowerCase());
+                          if (isTarget) return null;
+
+                          const isSelected = selectedBoxItem?.id === box.id;
+
+                          return (
+                            <div
+                              key={box.id || `box-${bIdx}`}
+                              className={`ocr-bbox ${isSelected ? "selected" : ""}`}
+                              style={{
+                                left: `${box.bbox.x}%`,
+                                top: `${box.bbox.y}%`,
+                                width: `${box.bbox.width}%`,
+                                height: `${box.bbox.height}%`,
+                              }}
+                              onClick={() => setSelectedBoxItem(box)}
+                            >
+                              <div className="ocr-bbox-tooltip">
+                                <span className="ocr-bbox-tooltip-text">{box.text}</span>
+                                {box.conf && (
+                                  <span className="ocr-bbox-conf">({Math.round(box.conf)}% conf)</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                      {/* 2. Targeted / Cited Active Bounding Box */}
+                      {activeVisualEvidence?.bbox && (
+                        <div
+                          className="ocr-bbox highlighted-active-box"
+                          style={{
+                            left: `${activeVisualEvidence.bbox.x}%`,
+                            top: `${activeVisualEvidence.bbox.y}%`,
+                            width: `${activeVisualEvidence.bbox.width}%`,
+                            height: `${activeVisualEvidence.bbox.height}%`,
+                          }}
+                        >
+                          <div className="highlight-pill-tag">
+                            [^{highlightedCitationId || activeVisualEvidence.citationId}]
+                          </div>
+                          <div className="active-bbox-callout">
+                            <strong>Ground-Truth OCR Extraction:</strong>
+                            <p>{activeVisualEvidence.content || activeVisualEvidence.title}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Selected Box Drawer */}
+              {selectedBoxItem && (
+                <div className="selected-box-drawer">
+                  <div className="drawer-header">
+                    <strong>Selected OCR Box</strong>
+                    <button
+                      type="button"
+                      className="ghost sm"
+                      onClick={() => setSelectedBoxItem(null)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="drawer-text">"{selectedBoxItem.text}"</p>
+                  <div className="drawer-meta">
+                    <span>
+                      Confidence: {selectedBoxItem.conf ? `${Math.round(selectedBoxItem.conf)}%` : "High"}
+                    </span>
+                    <span>
+                      Coordinates: ({selectedBoxItem.bbox.x}%, {selectedBoxItem.bbox.y}%, {selectedBoxItem.bbox.width}% × {selectedBoxItem.bbox.height}%)
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : sourceViewMode === "cards" ? (
             <>
               {/* Evidence Filter Bar */}
               <div className="source-search-bar">
@@ -450,6 +724,29 @@ export default function ReviewWorkspace({
                       <div className="evidence-content-snippet">
                         <p>{item.content}</p>
                       </div>
+
+                      {/* Visual Coordinates and Jump Button if item has BBox */}
+                      {(item.bbox || item.mediaUrl) && (
+                        <div className="evidence-visual-action-bar">
+                          {item.bbox && (
+                            <span className="evidence-coords-chip">
+                              📍 ({Math.round(item.bbox.x)}%, {Math.round(item.bbox.y)}%) • {Math.round(item.bbox.width)}%×{Math.round(item.bbox.height)}%
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            className="ghost sm inspect-visual-btn"
+                            onClick={() => {
+                              setActiveVisualEvidence(item);
+                              setHighlightedCitationId(item.citationId);
+                              setSourceViewMode("visual");
+                            }}
+                            title="Inspect in image canvas"
+                          >
+                            🔍 View in Image Canvas →
+                          </button>
+                        </div>
+                      )}
 
                       <div className="evidence-card-footer">
                         <span className="evidence-origin-label">

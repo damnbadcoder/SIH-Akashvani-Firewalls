@@ -13,10 +13,21 @@ class OutputItem(BaseModel):
     id: str
     params: Optional[GenerationParams] = None
 
+class BoundingBox(BaseModel):
+    x: float = Field(..., description="Left coordinate percentage 0.0-100.0")
+    y: float = Field(..., description="Top coordinate percentage 0.0-100.0")
+    width: float = Field(..., description="Width percentage 0.0-100.0")
+    height: float = Field(..., description="Height percentage 0.0-100.0")
+    text: Optional[str] = None
+
 class Citation(BaseModel):
     id: str
     label: str
-    kind: str = "file"  # file, link, text
+    kind: str = "file"  # file, link, text, ocr
+    bbox: Optional[Dict[str, Any]] = None
+    page_number: Optional[int] = None
+    media_url: Optional[str] = None
+    all_boxes: Optional[List[Dict[str, Any]]] = None
 
 class PlatformPreview(BaseModel):
     platform_key: str

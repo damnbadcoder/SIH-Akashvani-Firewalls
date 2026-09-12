@@ -11,8 +11,9 @@ try:
     from pipelines.base import BasePipeline
 except (ImportError, ValueError):
     from ..base import BasePipeline
-from .schema import PipelineResult, ImageProvenance
+from .schema import PipelineResult, ImageProvenance, GroundingAnchor, BoundingBox
 from .extractors.preprocessor import ImagePreprocessor
+from .extractors.ocr_utils import ImageOCRUtils
 from .interpreters.interpreter import ImageVisionInterpreter
 from .formatter import format_to_markdown
 from .mock import get_mock_pipeline_result
@@ -38,14 +39,30 @@ class ImagePipeline(BasePipeline):
         )
         final_image_name = image_name or resolved_name
 
+        # Extract OCR word and line bounding boxes from the image tensor
+        ocr_result = ImageOCRUtils.detect_ocr_boxes(processed_bytes)
+        detected_boxes = ocr_result.get("boxes", [])
+
         if force_mock or not self.interpreter.is_available:
             exec_time = int((time.time() - start_time) * 1000)
-            return get_mock_pipeline_result(
+            mock_res = get_mock_pipeline_result(
                 image_name=final_image_name,
                 file_size_kb=file_size_kb,
                 resolution=resolution,
                 execution_time_ms=exec_time,
             )
+            # If real image had OCR boxes detected, dynamically calibrate mock anchors to real boxes
+            if detected_boxes and len(detected_boxes) > 3:
+                for a in mock_res.grounding_sources:
+                    matched_box = ImageOCRUtils.match_phrase_to_bbox(
+                        target_text=a.extracted_verbatim,
+                        detected_boxes=detected_boxes,
+                        default_anchor=a.visual_anchor,
+                    )
+                    a.bbox = BoundingBox(**matched_box)
+                    a.all_boxes = detected_boxes
+                mock_res.all_boxes = detected_boxes
+            return mock_res
 
         try:
             parsed_data, anchors, entities, used_model = self.interpreter.interpret(
@@ -60,6 +77,17 @@ class ImagePipeline(BasePipeline):
             key_points = parsed_data.get("key_points", [])
             grounding_score = float(parsed_data.get("grounding_score_percent") or 99.0)
 
+            # Ground each anchor with exact 2D bounding box from OCR detection
+            for anchor in anchors:
+                if not anchor.bbox:
+                    matched_box = ImageOCRUtils.match_phrase_to_bbox(
+                        target_text=anchor.extracted_verbatim,
+                        detected_boxes=detected_boxes,
+                        default_anchor=anchor.visual_anchor,
+                    )
+                    anchor.bbox = BoundingBox(**matched_box)
+                anchor.all_boxes = detected_boxes
+
             exec_time = int((time.time() - start_time) * 1000)
 
             provenance = ImageProvenance(
@@ -69,6 +97,7 @@ class ImagePipeline(BasePipeline):
                 extraction_timestamp=datetime.now(timezone.utc).isoformat(),
                 grounding_score_percent=grounding_score,
                 resolution=resolution,
+                total_detected_boxes=len(detected_boxes),
             )
 
             markdown_output = format_to_markdown(
@@ -97,17 +126,29 @@ class ImagePipeline(BasePipeline):
                 execution_time_ms=exec_time,
                 mode="live",
                 model=used_model,
+                all_boxes=detected_boxes,
             )
 
         except Exception as e:
             print(f"[ImagePipeline Notice] Live extraction fallback triggered: {e}")
             exec_time = int((time.time() - start_time) * 1000)
-            return get_mock_pipeline_result(
+            mock_res = get_mock_pipeline_result(
                 image_name=final_image_name,
                 file_size_kb=file_size_kb,
                 resolution=resolution,
                 execution_time_ms=exec_time,
             )
+            if detected_boxes and len(detected_boxes) > 3:
+                for a in mock_res.grounding_sources:
+                    matched_box = ImageOCRUtils.match_phrase_to_bbox(
+                        target_text=a.extracted_verbatim,
+                        detected_boxes=detected_boxes,
+                        default_anchor=a.visual_anchor,
+                    )
+                    a.bbox = BoundingBox(**matched_box)
+                    a.all_boxes = detected_boxes
+                mock_res.all_boxes = detected_boxes
+            return mock_res
 
 
 def ingest_image(

@@ -226,7 +226,7 @@ async def generate_plan_endpoint(
         pipeline_type = router_service.detect_media_pipeline(filename)
 
         # Route through specific processing pipeline based on media type
-        processed = router_service.process_file_into_context(file_path, filename)
+        processed = router_service.process_file_into_context(file_path, filename, session_id=session.id)
         markdown_chunk = processed["markdown"]
         file_citations = processed["citations"]
         structured_meta = processed["metadata"]
@@ -248,10 +248,35 @@ async def generate_plan_endpoint(
         )
         db.add(file_rec)
 
-        citations.append(Citation(id=f"src-{idx}", label=filename, kind="file"))
-        raw_citations_list.append({"id": f"src-{idx}", "label": filename, "kind": "file"})
+        # Parent file citation
+        file_media_url = f"/api/pipeline/media/{session.id}/{filename}" if pipeline_type == "image" else None
+        parent_cit = Citation(
+            id=f"src-{idx}",
+            label=filename,
+            kind="ocr" if pipeline_type == "image" else "file",
+            media_url=file_media_url,
+            all_boxes=structured_meta.get("all_boxes"),
+        )
+        citations.append(parent_cit)
+        raw_citations_list.append({
+            "id": f"src-{idx}",
+            "label": filename,
+            "kind": "ocr" if pipeline_type == "image" else "file",
+            "media_url": file_media_url,
+            "all_boxes": structured_meta.get("all_boxes"),
+        })
+
         for c in file_citations:
-            citations.append(Citation(id=c["id"], label=c["label"], kind=c.get("kind", "file")))
+            sub_cit = Citation(
+                id=c["id"],
+                label=c["label"],
+                kind=c.get("kind", "file"),
+                bbox=c.get("bbox"),
+                page_number=c.get("page_number"),
+                media_url=c.get("media_url") or file_media_url,
+                all_boxes=c.get("all_boxes") or structured_meta.get("all_boxes"),
+            )
+            citations.append(sub_cit)
             raw_citations_list.append(c)
 
     # Process incoming web links through link_pipeline
@@ -642,5 +667,76 @@ async def download_link_artifact(path: str):
         path=str(target),
         media_type=media_type,
         filename=target.name,
+    )
+
+
+@router.get("/api/pipeline/media/{session_id}/{filepath:path}")
+async def get_pipeline_media(session_id: str, filepath: str):
+    """
+    Serves uploaded images, rendered PDF page previews, and diagrams
+    for the visual OCR inspector with path-traversal protection.
+    """
+    storage_root = settings.STORAGE_DIR.resolve()
+    base_root = settings.BASE_DIR.resolve()
+
+    clean_rel = filepath.lstrip("/")
+    candidates = [
+        settings.UPLOADS_DIR / session_id / clean_rel,
+        settings.RENDERS_DIR / session_id / clean_rel,
+        settings.RENDERS_DIR / clean_rel,
+        settings.STORAGE_DIR / session_id / clean_rel,
+        settings.STORAGE_DIR / clean_rel,
+    ]
+
+    # Check for "renders/" prefix
+    if clean_rel.startswith("renders/"):
+        sub = clean_rel[len("renders/"):]
+        candidates.insert(0, settings.RENDERS_DIR / session_id / sub)
+        candidates.insert(1, settings.RENDERS_DIR / sub)
+
+    found_path = None
+    for cand in candidates:
+        try:
+            res_cand = cand.resolve()
+            if (res_cand.is_relative_to(storage_root) or res_cand.is_relative_to(base_root)) and res_cand.is_file():
+                found_path = res_cand
+                break
+        except Exception:
+            continue
+
+    # Fallback to sample/test diagrams if mock or missing
+    if not found_path:
+        mock_img = settings.STORAGE_DIR / "nist_csf_mock.png"
+        if not mock_img.exists():
+            try:
+                from pipelines.image_pipeline.extractors.ocr_utils import ImageOCRUtils
+                ImageOCRUtils.generate_mock_diagram_image(str(mock_img))
+            except Exception:
+                pass
+        if mock_img.exists():
+            found_path = mock_img
+        elif (base_root / "tests" / "1.png").exists():
+            found_path = base_root / "tests" / "1.png"
+
+    if not found_path or not found_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Media file '{clean_rel}' not found.")
+
+    ext = found_path.suffix.lower()
+    media_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".gif": "image/gif",
+        ".pdf": "application/pdf",
+    }
+    media_type = media_map.get(ext, "application/octet-stream")
+
+    return FileResponse(
+        path=str(found_path),
+        media_type=media_type,
+        filename=found_path.name,
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 

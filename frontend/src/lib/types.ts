@@ -148,10 +148,34 @@ export const DEFAULT_PARAMS: GenerationParams = {
   language: "English",
 };
 
+export interface BoundingBox {
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  width: number; // percentage 0-100
+  height: number; // percentage 0-100
+  text?: string;
+}
+
+export interface DetectedBoxItem {
+  id?: string;
+  text?: string;
+  bbox: BoundingBox;
+  conf?: number;
+  visual_anchor?: string;
+  category?: string;
+}
+
 export interface Citation {
   id: string;
   label: string;
-  kind: "file" | "link" | "text";
+  kind: "file" | "link" | "text" | "ocr";
+  bbox?: BoundingBox;
+  page_number?: number;
+  pageNumber?: number;
+  media_url?: string;
+  imageUrl?: string;
+  all_boxes?: DetectedBoxItem[];
+  allBoxes?: DetectedBoxItem[];
 }
 
 export interface SensitiveDataFlag {

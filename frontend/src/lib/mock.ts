@@ -628,11 +628,32 @@ export async function generatePlan(
 
   for (const f of files) {
     const name: string = typeof f === "string" ? f : ((f as any)?.name || String(f));
-    citations.push({
-      id: `src-${citIdx++}`,
-      label: name,
-      kind: "file",
-    });
+    const isImage = /\.(png|jpg|jpeg|webp|svg)$/i.test(name);
+    const citId = `src-${citIdx++}`;
+    if (isImage) {
+      citations.push({
+        id: citId,
+        label: name,
+        kind: "ocr",
+        bbox: { x: 34.5, y: 42.0, width: 31.0, height: 16.0, text: "NIST Cybersecurity framework benefits" },
+        media_url: "/api/pipeline/media/default/1.png",
+        all_boxes: [
+          { id: "box-1", text: "NIST Cybersecurity framework benefits", bbox: { x: 34.5, y: 42.0, width: 31.0, height: 16.0 }, conf: 99.0 },
+          { id: "box-2", text: "Risk Management: Identify, assess, and manage risks", bbox: { x: 6.5, y: 12.0, width: 28.5, height: 22.0 }, conf: 95.0 },
+          { id: "box-3", text: "Improved Cybersecurity Posture: Structured framework", bbox: { x: 65.0, y: 12.0, width: 28.5, height: 22.0 }, conf: 95.0 },
+          { id: "box-4", text: "Common Language: Unified taxonomy and controls", bbox: { x: 67.5, y: 41.0, width: 26.5, height: 21.0 }, conf: 95.0 },
+          { id: "box-5", text: "Flexibility: Adaptable to organization needs", bbox: { x: 65.0, y: 68.0, width: 28.5, height: 22.0 }, conf: 95.0 },
+          { id: "box-6", text: "Cost-Effective: Optimized security spending", bbox: { x: 6.5, y: 68.0, width: 28.5, height: 22.0 }, conf: 95.0 },
+          { id: "box-7", text: "Compliance: Regulatory mapping (HIPAA, GDPR, PCI-DSS)", bbox: { x: 6.0, y: 41.0, width: 26.5, height: 21.0 }, conf: 95.0 },
+        ],
+      });
+    } else {
+      citations.push({
+        id: citId,
+        label: name,
+        kind: "file",
+      });
+    }
   }
 
   for (const l of links) {

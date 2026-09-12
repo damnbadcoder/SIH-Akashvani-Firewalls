@@ -2,6 +2,7 @@
 Backward-compatible re-exports for schema models.
 """
 from .schema import (
+    BoundingBox,
     ImageProvenance,
     GroundingAnchor,
     EntitiesDetected,
@@ -9,6 +10,7 @@ from .schema import (
 )
 
 __all__ = [
+    "BoundingBox",
     "ImageProvenance",
     "GroundingAnchor",
     "EntitiesDetected",

@@ -2,7 +2,7 @@
 Image Ingestion & Grounding Pipeline for NTRO PS 26154.
 Modular visual semantic attribution pipeline matching the project layout.
 """
-from .schema import PipelineResult, GroundingAnchor, ImageProvenance, EntitiesDetected
+from .schema import PipelineResult, GroundingAnchor, ImageProvenance, EntitiesDetected, BoundingBox
 from .ingest import ImagePipeline, ingest_image
 from .extractor import ImageExtractor, process_image_pipeline
 from .extractors.preprocessor import ImagePreprocessor
@@ -18,6 +18,7 @@ __all__ = [
     "process_image_pipeline",
     "PipelineResult",
     "GroundingAnchor",
+    "BoundingBox",
     "ImageProvenance",
     "EntitiesDetected",
     "ImagePreprocessor",
