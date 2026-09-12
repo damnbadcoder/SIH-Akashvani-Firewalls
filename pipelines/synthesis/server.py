@@ -38,7 +38,7 @@ except ImportError:
         return edited_text, []
 
 from preview_pipeline import generate_previews
-from final_post_pipeline import generate_final_deliverable
+from final_post_pipeline import generate_final_deliverable, strip_preview_wrappers
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".ogg", ".flac"}
@@ -216,9 +216,10 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                     metadata_json=metadata_json if isinstance(metadata_json, dict) else {},
                     parameters=parameters if isinstance(parameters, dict) else {}
                 )
+                clean_final = strip_preview_wrappers(result.final_content)
                 resp_payload = {
-                    "content": result.final_content,
-                    "final_content": result.final_content,
+                    "content": clean_final,
+                    "final_content": clean_final,
                     "provenance": [p.model_dump() for p in result.provenance]
                 }
                 if getattr(result, "verification", None):

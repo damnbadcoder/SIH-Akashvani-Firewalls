@@ -1,4 +1,4 @@
-from backend.schemas.auth import UserRegister, UserLogin, UserOut
+from backend.schemas.auth import UserRegister, UserLogin, UserSync, UserOut
 from backend.schemas.pipeline import (
     GenerationParams,
     OutputItem,
@@ -16,6 +16,7 @@ from backend.schemas.review import PreviewEditRequest, PreviewAcceptRequest, Pre
 __all__ = [
     "UserRegister",
     "UserLogin",
+    "UserSync",
     "UserOut",
     "GenerationParams",
     "OutputItem",

@@ -10,7 +10,9 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, Request, HTTPExc
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+import uuid
 from backend.database import get_db
+from backend.models.user import User
 from backend.models.session import SessionRecord
 from backend.models.file_record import FileRecord
 from backend.models.chat import ChatMessage
@@ -27,6 +29,7 @@ from backend.services.preview_service import preview_service
 from backend.services.branching_service import branching_service
 from backend.services.conditional_service import conditional_routing_service
 from backend.services.deliverable_service import deliverable_service
+from final_post_pipeline import strip_preview_wrappers
 
 router = APIRouter(tags=["Pipeline Orchestration"])
 
@@ -68,6 +71,10 @@ async def generate_plan_endpoint(
     uploaded_files: List[Tuple[str, bytes]] = []
     parameters: Dict[str, Any] = {}
 
+    user_email = ""
+    user_id = ""
+    existing_session_id = ""
+
     if "multipart/form-data" in content_type:
         form = await request.form()
         source_text = str(form.get("sourceText", "") or "")
@@ -75,6 +82,9 @@ async def generate_plan_endpoint(
         outputs_str = str(form.get("outputs", "[]") or "[]")
         is_org_val = form.get("isOrganisation", "false")
         is_organisation = str(is_org_val).lower() in ("true", "1", "yes")
+        user_email = str(form.get("email", "") or form.get("userEmail", "") or "")
+        user_id = str(form.get("user_id", "") or form.get("userId", "") or "")
+        existing_session_id = str(form.get("session_id", "") or form.get("sessionId", "") or "")
 
         try:
             source_links = json.loads(links_str) if isinstance(links_str, str) else []
@@ -102,6 +112,9 @@ async def generate_plan_endpoint(
         is_organisation = bool(
             payload.get("isOrganisation", False) or payload.get("is_organization", False)
         )
+        user_email = str(payload.get("email") or payload.get("userEmail") or "")
+        user_id = str(payload.get("user_id") or payload.get("userId") or "")
+        existing_session_id = str(payload.get("session_id") or payload.get("sessionId") or "")
 
         if not outputs_raw and selected_outputs_list:
             outputs_raw = selected_outputs_list
@@ -129,14 +142,50 @@ async def generate_plan_endpoint(
     if not selected_keys:
         selected_keys = ["linkedin_post", "advisory"]
 
-    # 1. Create DB Session
-    session = SessionRecord(
-        title=f"Transformation: {selected_keys[0]} ({len(selected_keys)} outputs)",
-        is_organisation=is_organisation,
-        source_text=source_text,
-        source_links_json=json.dumps(source_links),
-    )
-    db.add(session)
+    # 1. Resolve User and Session
+    user = None
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    if not user and user_email:
+        user = db.query(User).filter(User.email == user_email).first()
+        if not user:
+            user = User(
+                id=str(uuid.uuid4()),
+                name=user_email.split("@")[0].capitalize(),
+                email=user_email,
+                user_type="Organisation" if is_organisation else "Researcher",
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+    session = None
+    if existing_session_id:
+        session = db.query(SessionRecord).filter(SessionRecord.id == existing_session_id).first()
+
+    if session:
+        session.title = f"Transformation: {selected_keys[0]} ({len(selected_keys)} outputs)"
+        session.is_organisation = is_organisation
+        session.source_text = source_text
+        session.source_links_json = json.dumps(source_links)
+        session.status = "blueprint_ready"
+        session.selected_outputs_json = json.dumps(selected_keys)
+        session.parameters_json = json.dumps(merged_params)
+        if user and not session.user_id:
+            session.user_id = user.id
+    else:
+        session = SessionRecord(
+            user_id=user.id if user else None,
+            title=f"Transformation: {selected_keys[0]} ({len(selected_keys)} outputs)",
+            is_organisation=is_organisation,
+            source_text=source_text,
+            source_links_json=json.dumps(source_links),
+            status="blueprint_ready",
+            selected_outputs_json=json.dumps(selected_keys),
+            parameters_json=json.dumps(merged_params),
+        )
+        db.add(session)
+
     db.commit()
     db.refresh(session)
 
@@ -262,6 +311,14 @@ async def generate_plan_endpoint(
     for fact in preview_data.get("extracted_facts", []):
         citations.append(Citation(id=f"fact-{len(citations)+1}", label=fact, kind="text"))
 
+    # Update session with enhanced grounding and blueprint status
+    session.grounding_md = enhanced_md
+    session.grounding_json = json.dumps(enhanced_metadata_json) if isinstance(enhanced_metadata_json, dict) else str(enhanced_metadata_json)
+    session.status = "blueprint_ready"
+    session.selected_outputs_json = json.dumps(selected_keys)
+    session.parameters_json = json.dumps(merged_params)
+    db.commit()
+
     return {
         "plan": preview_data["plan"],
         "previewsByType": preview_data["previewsByType"],
@@ -271,6 +328,9 @@ async def generate_plan_endpoint(
         "grounding_json": enhanced_metadata_json,
         "extracted_facts": preview_data.get("extracted_facts", []),
         "session_id": session.id,
+        "sessionId": session.id,
+        "status": "blueprint_ready",
+        "selectedOutputs": selected_keys,
     }
 
 
@@ -290,13 +350,17 @@ async def generate_deliverable_endpoint(
 
     platform_key = payload.get("platform_key") or payload.get("outputType") or "linkedin_post"
     approved_draft = payload.get("approved_draft") or payload.get("previewDraft") or ""
+    if approved_draft:
+        approved_draft = strip_preview_wrappers(approved_draft)
     content_md = payload.get("content_md") or payload.get("groundingMd") or payload.get("sourceText") or ""
     metadata_json = payload.get("metadata_json") or payload.get("groundingJson") or {}
     parameters = payload.get("parameters") or payload.get("params") or {}
     is_organisation = bool(
         payload.get("isOrganisation", False) or payload.get("is_organization", False)
     )
-    session_id = payload.get("session_id")
+    session_id = payload.get("session_id") or payload.get("sessionId")
+    user_email = payload.get("email") or payload.get("userEmail")
+    user_id = payload.get("user_id") or payload.get("userId")
 
     if not isinstance(metadata_json, dict):
         metadata_json = {}
@@ -307,17 +371,44 @@ async def generate_deliverable_endpoint(
     session = None
     if session_id:
         session = db.query(SessionRecord).filter(SessionRecord.id == session_id).first()
+
+    if not session and (user_id or user_email):
+        user = None
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+        if not user and user_email:
+            user = db.query(User).filter(User.email == user_email).first()
+        if user:
+            # Check for latest blueprint_ready session for this user
+            session = (
+                db.query(SessionRecord)
+                .filter(SessionRecord.user_id == user.id, SessionRecord.status == "blueprint_ready")
+                .order_by(SessionRecord.created_at.desc())
+                .first()
+            )
+
     if not session:
+        user = None
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+        if not user and user_email:
+            user = db.query(User).filter(User.email == user_email).first()
         session = SessionRecord(
+            user_id=user.id if user else None,
             title=f"Final Deliverable: {platform_key}",
             is_organisation=is_organisation,
             source_text=content_md,
             grounding_md=content_md,
+            status="completed",
         )
         db.add(session)
         db.commit()
         db.refresh(session)
         session_id = session.id
+    else:
+        session_id = session.id
+        if not session.grounding_md and content_md:
+            session.grounding_md = content_md
 
     if isinstance(metadata_json, dict) and "original_preview_draft" not in metadata_json:
         orig_d = (
@@ -388,5 +479,13 @@ async def generate_deliverable_endpoint(
         metadata_json=metadata_json,
         parameters=parameters,
     )
+
+    if session:
+        session.status = "completed"
+        db.commit()
+
+    result["sessionId"] = session_id
+    result["session_id"] = session_id
+    result["status"] = "completed"
 
     return result

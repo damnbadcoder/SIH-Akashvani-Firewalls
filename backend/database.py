@@ -45,6 +45,24 @@ def get_db():
 def init_db():
     import backend.models  # Ensure all models are registered with Base
     Base.metadata.create_all(bind=engine)
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            # Check for newly added columns in sessions table
+            existing_cols = []
+            if "sqlite" in str(engine.url):
+                res = conn.execute(text("PRAGMA table_info(sessions);"))
+                existing_cols = [r[1] for r in res.fetchall()]
+                if existing_cols:
+                    if "status" not in existing_cols:
+                        conn.execute(text("ALTER TABLE sessions ADD COLUMN status VARCHAR(50) DEFAULT 'blueprint_ready';"))
+                    if "selected_outputs_json" not in existing_cols:
+                        conn.execute(text("ALTER TABLE sessions ADD COLUMN selected_outputs_json TEXT;"))
+                    if "parameters_json" not in existing_cols:
+                        conn.execute(text("ALTER TABLE sessions ADD COLUMN parameters_json TEXT;"))
+                    conn.commit()
+    except Exception as e:
+        logger.warning(f"Session column auto-migration warning: {e}")
     logger.info("Database schemas initialized.")
 
 def check_db_connection() -> bool:

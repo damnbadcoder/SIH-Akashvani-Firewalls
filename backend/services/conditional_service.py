@@ -2,10 +2,12 @@ import re
 from typing import Dict, Any, List, Tuple
 
 try:
-    from enhancements.sensitivity_checker import scan_and_redact
+    from enhancements.sensitivity_checker import scan_and_redact, strip_preview_wrappers
 except ImportError:
-    def scan_and_redact(text: str, is_organization: bool = False):
+    def scan_and_redact(text: str, is_organization: bool = False, wrap_html: bool = False):
         return text, []
+    def strip_preview_wrappers(text: str) -> str:
+        return text
 
 try:
     from enhancements.nli_guardrail import verify_citations
@@ -34,11 +36,12 @@ class ConditionalRoutingService:
     """
 
     @staticmethod
-    def enhance_3_sensitive_check(text: str) -> Tuple[str, List[Any]]:
+    def enhance_3_sensitive_check(text: str, wrap_html: bool = False) -> Tuple[str, List[Any]]:
         """
         Enhance-3: Scans and flags operational sensitive data.
+        Defaults to wrap_html=False so final synthesis drafts remain clean text.
         """
-        audited_text, flags = scan_and_redact(text, is_organization=True)
+        audited_text, flags = scan_and_redact(text, is_organization=True, wrap_html=wrap_html)
         return audited_text, flags
 
     @staticmethod
@@ -105,8 +108,9 @@ class ConditionalRoutingService:
             return draft_text, [], False
 
         # Condition A:
-        # Step 1: Enhance-3
-        sensitive_text, flags = ConditionalRoutingService.enhance_3_sensitive_check(draft_text)
+        # Step 1: Enhance-3 (Clean scan without HTML span injection for final release)
+        clean_draft = strip_preview_wrappers(draft_text)
+        sensitive_text, flags = ConditionalRoutingService.enhance_3_sensitive_check(clean_draft, wrap_html=False)
 
         # Step 2: Enhance-4
         final_routed_text = ConditionalRoutingService.enhance_4_citation_restoration(
@@ -115,6 +119,7 @@ class ConditionalRoutingService:
             source_context=source_context
         )
 
+        final_routed_text = strip_preview_wrappers(final_routed_text)
         return final_routed_text, flags, True
 
 conditional_routing_service = ConditionalRoutingService()

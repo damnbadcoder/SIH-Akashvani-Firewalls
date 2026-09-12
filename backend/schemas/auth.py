@@ -12,6 +12,12 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
+class UserSync(BaseModel):
+    name: str
+    email: str
+    user_type: str = "Organisation"
+    organisation: Optional[str] = None
+
 class UserOut(BaseModel):
     id: str
     name: str

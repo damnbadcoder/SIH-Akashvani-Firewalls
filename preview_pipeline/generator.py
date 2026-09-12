@@ -24,7 +24,7 @@ from .types import (
 try:
     from enhancements.sensitivity_checker import scan_and_redact
 except ImportError:
-    def scan_and_redact(text: str, is_organization: bool = False):
+    def scan_and_redact(text: str, is_organization: bool = False, wrap_html: bool = True):
         return text, []
 
 try:
@@ -230,13 +230,14 @@ METADATA / ANCHORS (JSON):
 {json.dumps(metadata_json, indent=2)}
 
 CRITICAL INSTRUCTIONS:
-1. Ground the content 100% in the PRIMARY SOURCE MATERIAL provided above. If the source discusses automotive cybersecurity (e.g., CERT-In SAMVAAD 2025, in-vehicle communications, ECU telemetry, compliance), draft concrete material about that exact topic.
-2. DO NOT output placeholder phrases, templates, or instructions (e.g., DO NOT write "Attention-grabbing opening line", "3 bullet points", or generic boilerplate). Write REAL, substantive, copy-ready drafts.
-3. For EACH output type, generate a JSON object matching its exact schema.
-4. Return a single JSON object with keys = output_type, values = structured content object.
-5. Include "citations_used" array in each with markers like "[^src-1]".
-6. Extract key facts from source and include in response as "extracted_facts" array of strings.
-7. Include metadata anchors as "metadata_anchors" object.
+1. Ground the content 100% in the PRIMARY SOURCE MATERIAL provided above (including OCR image extractions, PDF analysis, audio/video transcripts, and security telemetry). Extract and synthesize the REAL entities, threat actors (e.g., Conti, REvil, Sophos Rapid Response, IBM X-Force, CERT-In, NIST, etc.), CVEs, indicators, and timelines present in the source material. DO NOT invent synthetic organizations or default breach scenarios like BankShield or ShadowGate Collective.
+2. MANDATORY CITATION ANCHORING: Every key insight, metric, threat context finding, and technical analysis statement MUST be directly anchored with citations (e.g., [^src-1], [^img-1], [^aud-1], [^vid-1]) pointing back to the specific source evidence in PRIMARY SOURCE MATERIAL.
+3. DO NOT output placeholder phrases, templates, or instructions (e.g., DO NOT write "Attention-grabbing opening line", "3 bullet points", or generic boilerplate). Write REAL, substantive, copy-ready drafts.
+4. For EACH output type, generate a JSON object matching its exact schema.
+5. Return a single JSON object with keys = output_type, values = structured content object.
+6. Include "citations_used" array in each with markers like ["[^src-1]", "[^img-1]"].
+7. Extract key facts from source and include in response as "extracted_facts" array of strings.
+8. Include metadata anchors as "metadata_anchors" object.
 
 {chr(10).join(output_instructions)}
 
@@ -317,7 +318,7 @@ def _generate_single_preview_llm(
         f"You are an expert cybersecurity content strategist.\n"
         f"Generate a publication-ready draft for: {key.upper()}.\n"
         f"Tone & Parameters: {json.dumps(parameters)}\n\n"
-        f"SOURCE MATERIAL:\n{content_md[:4000]}\n\n"
+        f"SOURCE MATERIAL:\n{content_md}\n\n"
         f"Requirements: Ground content strictly in source material. Preserve citation tags like [^src-1]. "
         f"Provide comprehensive, high-quality, professional markdown formatted content."
     )
@@ -347,7 +348,7 @@ def _generate_single_preview_llm(
                     chat = gclient.chat.completions.create(
                         messages=[{"role": "user", "content": prompt}],
                         model=gm,
-                        max_tokens=2000,
+                        max_tokens=950,
                         temperature=0.2,
                     )
                     txt = chat.choices[0].message.content.strip()
@@ -367,7 +368,7 @@ def _generate_single_preview_llm(
 
     flags = []
     if is_organization:
-        draft_text, flags = scan_and_redact(draft_text, is_organization=True)
+        _, flags = scan_and_redact(draft_text, is_organization=True, wrap_html=False)
 
     citations_used = re.findall(r"\[\^[^\]]+\]", draft_text) or ["[^-src-1]"]
     return PlatformPreview(
@@ -395,7 +396,7 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
     candidate_gemini_models = [
         gemini_model,
         "gemini-3.5-flash-lite",
-        "gemini-flash-latest",
+        "gemini-3.6-flash",
     ]
     seen_g = set()
     gemini_models_to_try = [m for m in candidate_gemini_models if m and not (m in seen_g or seen_g.add(m))]
@@ -449,7 +450,7 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
                             {"role": "system", "content": "You are an expert cybersecurity threat intelligence analyst. You output strictly valid JSON."},
                             {"role": "user", "content": prompt}
                         ],
-                        max_tokens=3000,
+                        max_tokens=950,
                         temperature=0.2,
                     )
                     raw = gresp.choices[0].message.content.strip()
@@ -492,7 +493,7 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
                 draft_content = str(structured)
 
             if is_organization:
-                draft_content, flags = scan_and_redact(draft_content, is_organization=True)
+                _, flags = scan_and_redact(draft_content, is_organization=True, wrap_html=False)
 
             structured_obj = None
             if isinstance(structured, dict):

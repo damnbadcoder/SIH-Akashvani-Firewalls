@@ -18,6 +18,7 @@ from .types import (
 )
 from .proofchecker import (
     scan_and_redact,
+    strip_preview_wrappers,
     DeterministicSensitivityScanner,
     calculate_shannon_entropy,
 )

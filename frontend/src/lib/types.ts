@@ -7,10 +7,13 @@ export type UserType =
   | "Individual";
 
 export interface User {
+  id?: string;
+  uid?: string;
   name: string;
   email: string;
   userType: UserType;
   organisation?: string;
+  photoURL?: string;
 }
 
 export type OutputTypeId =
@@ -151,13 +154,26 @@ export interface Citation {
   kind: "file" | "link" | "text";
 }
 
+export interface SensitiveDataFlag {
+  flag_id: string;
+  entity_type: string;
+  matched_text: string;
+  char_start: number;
+  char_end: number;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | string;
+  suggested_action?: "REDACT" | "ACCEPT" | "REJECT" | string;
+}
+
 export interface PlatformPreview {
   platform_key: string;
   output_type_id?: OutputTypeId;
+  display_name?: string;
   draft_title: string;
   draft_content: string;
   citations_used: string[];
   sensitive_items_flagged?: number;
+  sensitive_flags?: SensitiveDataFlag[];
+  readability?: any;
 }
 
 export interface Deliverable {
@@ -168,6 +184,9 @@ export interface Deliverable {
 
 export interface Generation {
   id: string;
+  sessionId?: string;
+  status?: "blueprint_ready" | "completed";
+  selectedOutputs?: OutputTypeId[];
   createdAt: number;
   sourceText: string;
   fileNames: string[];

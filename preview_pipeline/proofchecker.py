@@ -474,8 +474,138 @@ EXISTING_WRAPPER_REGEX = re.compile(
     re.IGNORECASE,
 )
 
+# Regex to identify standard document classification headers (e.g. **CLASSIFICATION:** STRICTLY CONFIDENTIAL // BOARD MATERIAL)
+CLASSIFICATION_BANNER_REGEX = re.compile(
+    r"(?mi)^(?:[#*\s]*)(?:CLASSIFICATION|TLP|HANDLING\s+INSTRUCTIONS|SECURITY\s+MARKING)[#*\s]*:\s*[^\n\r]+",
+    re.IGNORECASE,
+)
+
+# Regex to protect operator redaction tags from being double-wrapped or re-flagged
+REDACTED_SPAN_REGEX = re.compile(
+    r"\[REDACTED(?::\s*[^\]]+)?\]|\[RESTRICTED\]",
+    re.IGNORECASE,
+)
+
 # Standalone citation tokens that should never be flagged
 SAFE_CITATION_TOKEN_REGEX = re.compile(r"^(?:src|aud|vid|doc|fact)-\d+$", re.IGNORECASE)
+
+
+def _strip_element_by_class(text: str, tag: str, class_name: str) -> str:
+    lower_text = text.lower()
+    tag_open_prefix = f"<{tag}"
+    class_str = class_name.lower()
+
+    start_pos = 0
+    while True:
+        idx = lower_text.find(tag_open_prefix, start_pos)
+        if idx == -1:
+            break
+        tag_end = lower_text.find(">", idx)
+        if tag_end == -1:
+            break
+        tag_header = lower_text[idx:tag_end + 1]
+        if class_str not in tag_header:
+            start_pos = idx + 1
+            continue
+
+        depth = 1
+        curr = tag_end + 1
+        close_tag = f"</{tag}>"
+        while depth > 0 and curr < len(text):
+            if lower_text[curr:curr + len(tag_open_prefix)] == tag_open_prefix:
+                depth += 1
+                curr += len(tag_open_prefix)
+            elif lower_text[curr:curr + len(close_tag)] == close_tag:
+                depth -= 1
+                if depth == 0:
+                    break
+                curr += len(close_tag)
+            else:
+                curr += 1
+
+        if depth == 0:
+            full_element = text[idx:curr + len(close_tag)]
+            val_match = re.search(
+                r'class="[^"]*flag-matched-value[^"]*"[^>]*>(.*?)</span>',
+                full_element,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if val_match:
+                replacement = val_match.group(1).strip()
+            else:
+                inner_content = text[tag_end + 1:curr]
+                clean = re.sub(r"<[^>]+>", "", inner_content).strip()
+                clean = re.sub(r"^\[(?:⚠️|SENSITIVE)[^:]*:\s*", "", clean)
+                clean = re.sub(r"\]$", "", clean)
+                replacement = clean.strip()
+
+            text = text[:idx] + replacement + text[curr + len(close_tag):]
+            lower_text = text.lower()
+            start_pos = idx + len(replacement)
+        else:
+            start_pos = tag_end + 1
+
+    return text
+
+
+def strip_preview_wrappers(text: str) -> str:
+    """
+    Strips out interactive preview badges and resolves nested redactions for final release.
+    Guarantees clean publication markdown without review UI inspection artifacts.
+    """
+    if not text:
+        return ""
+    # 1. Un-nest double redaction markers: [SENSITIVE: [REDACTED: X]] -> [REDACTED: X]
+    text = re.sub(
+        r"\[SENSITIVE:\s*\[REDACTED(?::\s*([^\]]+))?\]\]",
+        lambda m: f"[REDACTED: {m.group(1)}]" if m.group(1) else "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\[REDACTED:\s*\[REDACTED(?::\s*([^\]]+))?\]\]",
+        lambda m: f"[REDACTED: {m.group(1)}]" if m.group(1) else "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # 2. Strip review UI badges and HTML spans
+    text = _strip_element_by_class(text, "span", "sensitive-flag-badge")
+    text = _strip_element_by_class(text, "mark", "sensitive-flag-badge")
+
+    # Red-colored style spans (from python scanner wrap_html=True)
+    text = re.sub(
+        r"<span[^>]*style=\"[^\"]*color:\s*red[^\"]*\"[^>]*>(.*?)</span>",
+        r"\1",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    # Redacted pill badges: <span class="redacted-pill-badge">[REDACTED: ...]</span> -> [REDACTED: ...]
+    text = re.sub(
+        r"<span[^>]*class=\"[^\"]*redacted-pill-badge[^\"]*\"[^>]*>(.*?)</span>",
+        r"\1",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    # 3. Strip standalone markdown review wrappers
+    text = re.sub(
+        r"\[SENSITIVE:\s*\[REDACTED(?::\s*([^\]]+))?\]\]",
+        lambda m: f"[REDACTED: {m.group(1)}]" if m.group(1) else "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\[SENSITIVE:\s*(.*?)\]", r"\1", text, flags=re.IGNORECASE)
+
+    # 4. Clean up classification banners
+    text = re.sub(
+        r"(\*{0,2}(?:CLASSIFICATION|TLP|TRAFFIC LIGHT PROTOCOL):\*{0,2}\s*)\[SENSITIVE:\s*([^\]]+)\]",
+        r"\1\2",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    return text
 
 
 # =============================================================================
@@ -536,11 +666,15 @@ class DeterministicSensitivityScanner:
         return -sum((count / length) * math.log2(count / length) for count in counts.values())
 
     def _get_protected_spans(self, text: str) -> List[Tuple[int, int]]:
-        """Identify spans that must never be modified (citations, already wrapped markers)."""
+        """Identify spans that must never be modified (citations, already wrapped markers, classification headers, redactions)."""
         protected = []
         for m in CITATION_REGEX.finditer(text):
             protected.append((m.start(), m.end()))
         for m in EXISTING_WRAPPER_REGEX.finditer(text):
+            protected.append((m.start(), m.end()))
+        for m in CLASSIFICATION_BANNER_REGEX.finditer(text):
+            protected.append((m.start(), m.end()))
+        for m in REDACTED_SPAN_REGEX.finditer(text):
             protected.append((m.start(), m.end()))
         return protected
 
@@ -553,10 +687,10 @@ class DeterministicSensitivityScanner:
 
     def scan(self, text: str) -> List[SensitiveDataFlag]:
         """Scan text and return detected sensitive flags without text modification."""
-        _, flags = self.scan_and_redact(text)
+        _, flags = self.scan_and_redact(text, wrap_html=False)
         return flags
 
-    def scan_and_redact(self, text: str) -> Tuple[str, List[SensitiveDataFlag]]:
+    def scan_and_redact(self, text: str, wrap_html: bool = True) -> Tuple[str, List[SensitiveDataFlag]]:
         """
         Scan text for sensitive data patterns and wrap matches in red HTML spans:
         <span style="color: red; font-weight: bold;">[SENSITIVE: <matched_value>]</span>
@@ -695,16 +829,45 @@ class DeterministicSensitivityScanner:
         # Sort selected matches by start position ascending for the output flags
         selected_spans.sort(key=lambda c: c[0])
 
-        flags: List[SensitiveDataFlag] = [
-            SensitiveDataFlag(
-                entity_type=etype,
-                matched_text=mtext,
-                char_start=start,
-                char_end=end,
-                severity="HIGH",
+        CRITICAL_ENTITIES = {
+            "INTERNAL_IP",
+            "SECRET_TOKEN",
+            "HIGH_ENTROPY_SECRET",
+            "DB_CONNECTION_STRING",
+            "EXPLOIT_PAYLOAD",
+            "RFC1918_IPV4",
+            "API_KEY",
+            "CREDENTIAL",
+        }
+        HIGH_ENTITIES = {
+            "TACTICAL_KEYWORD",
+            "INTERNAL_DOMAIN",
+            "INTERNAL_PII",
+        }
+
+        flags: List[SensitiveDataFlag] = []
+        for idx, (start, end, etype, mtext, _) in enumerate(selected_spans, 1):
+            if etype in CRITICAL_ENTITIES:
+                sev = "CRITICAL"
+            elif etype in HIGH_ENTITIES:
+                sev = "HIGH"
+            else:
+                sev = "MEDIUM"
+
+            flags.append(
+                SensitiveDataFlag(
+                    flag_id=f"flag-{idx}",
+                    entity_type=etype,
+                    matched_text=mtext,
+                    char_start=start,
+                    char_end=end,
+                    severity=sev,
+                    suggested_action="REDACT",
+                )
             )
-            for start, end, etype, mtext, _ in selected_spans
-        ]
+
+        if not wrap_html:
+            return text, flags
 
         # ─────────────────────────────────────────────────────────────────
         # In-Place Text Wrapping (reverse order to preserve char offsets)
@@ -725,9 +888,14 @@ class DeterministicSensitivityScanner:
 _default_scanner = DeterministicSensitivityScanner()
 
 
-def scan_and_redact(text: str) -> Tuple[str, List[SensitiveDataFlag]]:
+def scan_and_redact(text: str, wrap_html: bool = True) -> Tuple[str, List[SensitiveDataFlag]]:
     """Convenience module-level function for scanning and wrapping sensitive data."""
-    return _default_scanner.scan_and_redact(text)
+    return _default_scanner.scan_and_redact(text, wrap_html=wrap_html)
+
+
+def scan(text: str) -> List[SensitiveDataFlag]:
+    """Convenience module-level function for scanning sensitive data without wrapping."""
+    return _default_scanner.scan(text)
 
 
 def calculate_shannon_entropy(token: str) -> float:

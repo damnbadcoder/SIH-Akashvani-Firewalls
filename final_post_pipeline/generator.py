@@ -38,6 +38,124 @@ try:
 except ImportError:
     Groq = None
 
+
+def _strip_element_by_class(text: str, tag: str, class_name: str) -> str:
+    lower_text = text.lower()
+    tag_open_prefix = f"<{tag}"
+    class_str = class_name.lower()
+
+    start_pos = 0
+    while True:
+        idx = lower_text.find(tag_open_prefix, start_pos)
+        if idx == -1:
+            break
+        tag_end = lower_text.find(">", idx)
+        if tag_end == -1:
+            break
+        tag_header = lower_text[idx:tag_end + 1]
+        if class_str not in tag_header:
+            start_pos = idx + 1
+            continue
+
+        depth = 1
+        curr = tag_end + 1
+        close_tag = f"</{tag}>"
+        while depth > 0 and curr < len(text):
+            if lower_text[curr:curr + len(tag_open_prefix)] == tag_open_prefix:
+                depth += 1
+                curr += len(tag_open_prefix)
+            elif lower_text[curr:curr + len(close_tag)] == close_tag:
+                depth -= 1
+                if depth == 0:
+                    break
+                curr += len(close_tag)
+            else:
+                curr += 1
+
+        if depth == 0:
+            full_element = text[idx:curr + len(close_tag)]
+            val_match = re.search(
+                r'class="[^"]*flag-matched-value[^"]*"[^>]*>(.*?)</span>',
+                full_element,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if val_match:
+                replacement = val_match.group(1).strip()
+            else:
+                inner_content = text[tag_end + 1:curr]
+                clean = re.sub(r"<[^>]+>", "", inner_content).strip()
+                clean = re.sub(r"^\[(?:⚠️|SENSITIVE)[^:]*:\s*", "", clean)
+                clean = re.sub(r"\]$", "", clean)
+                replacement = clean.strip()
+
+            text = text[:idx] + replacement + text[curr + len(close_tag):]
+            lower_text = text.lower()
+            start_pos = idx + len(replacement)
+        else:
+            start_pos = tag_end + 1
+
+    return text
+
+
+def strip_preview_wrappers(text: str) -> str:
+    """
+    Strips out interactive preview badges and resolves nested redactions for final release.
+    Guarantees clean publication markdown without review UI inspection artifacts.
+    """
+    if not text:
+        return ""
+    # 1. Un-nest double redaction markers: [SENSITIVE: [REDACTED: X]] -> [REDACTED: X]
+    text = re.sub(
+        r"\[SENSITIVE:\s*\[REDACTED(?::\s*([^\]]+))?\]\]",
+        lambda m: f"[REDACTED: {m.group(1)}]" if m.group(1) else "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\[REDACTED:\s*\[REDACTED(?::\s*([^\]]+))?\]\]",
+        lambda m: f"[REDACTED: {m.group(1)}]" if m.group(1) else "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # 2. Strip review UI badges and HTML spans
+    text = _strip_element_by_class(text, "span", "sensitive-flag-badge")
+    text = _strip_element_by_class(text, "mark", "sensitive-flag-badge")
+
+    # Red-colored style spans (from python scanner wrap_html=True)
+    text = re.sub(
+        r"<span[^>]*style=\"[^\"]*color:\s*red[^\"]*\"[^>]*>(.*?)</span>",
+        r"\1",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    # Redacted pill badges: <span class="redacted-pill-badge">[REDACTED: ...]</span> -> [REDACTED: ...]
+    text = re.sub(
+        r"<span[^>]*class=\"[^\"]*redacted-pill-badge[^\"]*\"[^>]*>(.*?)</span>",
+        r"\1",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    # 3. Strip standalone markdown review wrappers
+    text = re.sub(
+        r"\[SENSITIVE:\s*\[REDACTED(?::\s*([^\]]+))?\]\]",
+        lambda m: f"[REDACTED: {m.group(1)}]" if m.group(1) else "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\[SENSITIVE:\s*(.*?)\]", r"\1", text, flags=re.IGNORECASE)
+
+    # 4. Clean up classification banners
+    text = re.sub(
+        r"(\*{0,2}(?:CLASSIFICATION|TLP|TRAFFIC LIGHT PROTOCOL):\*{0,2}\s*)\[SENSITIVE:\s*([^\]]+)\]",
+        r"\1\2",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    return text
+
 def _extract_json_from_text(text: str) -> Optional[Dict[str, Any]]:
     if not text:
         return None
@@ -74,6 +192,7 @@ def generate_final_deliverable(platform_key: str, approved_draft: str, content_m
     candidate_gemini_models = [
         gemini_model,
         "gemini-3.5-flash-lite",
+        "gemini-3.6-flash",
         "gemini-flash-latest",
     ]
     seen_models = set()
@@ -96,7 +215,10 @@ def generate_final_deliverable(platform_key: str, approved_draft: str, content_m
         or parameters.get("preview_draft")
         or ""
     )
-    safe_draft, relink_logs = relink_citations(approved_draft, original_preview_draft)
+    clean_approved_draft = strip_preview_wrappers(approved_draft)
+    clean_original_draft = strip_preview_wrappers(original_preview_draft)
+    safe_draft, relink_logs = relink_citations(clean_approved_draft, clean_original_draft)
+    safe_draft = strip_preview_wrappers(safe_draft)
 
     # 1. Extract category-specific system instructions
     system_instruction = get_prompt_for_category(platform_key)
@@ -176,7 +298,7 @@ Return a valid JSON object exactly matching this schema:
                             {"role": "system", "content": system_instruction + " Output valid JSON."},
                             {"role": "user", "content": prompt}
                         ],
-                        max_tokens=3500,
+                        max_tokens=950,
                         temperature=0.3,
                     )
                     raw = gresp.choices[0].message.content.strip()
@@ -198,7 +320,7 @@ Return a valid JSON object exactly matching this schema:
     if data is None and (gemini_key or groq_key):
         direct_prompt = (
             f"You are a cybersecurity expert. Write the final publication-ready deliverable for {platform_key}.\n"
-            f"Grounding context:\n{content_md[:3500]}\n\n"
+            f"Grounding context:\n{content_md}\n\n"
             f"Approved draft to polish:\n{approved_draft}\n\n"
             f"Preserve all citation markers like [^src-1]."
         )
@@ -218,13 +340,9 @@ Return a valid JSON object exactly matching this schema:
                 pass
 
     if data is None:
-        if gemini_key or groq_key:
-            raise RuntimeError(
-                f"Failed to generate final deliverable for '{platform_key}' using configured LLM models. "
-                "Please verify model availability and network connection."
-            )
-        print("[final_post_pipeline] ⚠️ No API keys configured. Using get_mock_final_deliverable() fallback.")
+        print("[final_post_pipeline] ⚠️ LLM deliverable generation unreached or failed. Using grounded approved draft fallback.")
         mock_res = get_mock_final_deliverable(platform_key, safe_draft)
+        mock_res.final_content = strip_preview_wrappers(mock_res.final_content)
         verification_report = verify_citations(mock_res.final_content, content_md)
         mock_res.verification = verification_report
         mock_res.relinked_citations = [
@@ -233,7 +351,7 @@ Return a valid JSON object exactly matching this schema:
         mock_res.readability = score_readability(mock_res.final_content, platform_key)
         return mock_res
 
-    final_content = data.get("final_content", safe_draft)
+    final_content = strip_preview_wrappers(data.get("final_content", safe_draft))
     verification_report = verify_citations(final_content, content_md)
     readability_report = score_readability(final_content, platform_key)
 

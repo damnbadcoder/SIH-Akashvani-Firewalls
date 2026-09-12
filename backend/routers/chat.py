@@ -1,6 +1,6 @@
 import json
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models.session import SessionRecord
@@ -11,15 +11,30 @@ from backend.schemas.chat import ChatMessageCreate, ChatMessageOut
 from backend.schemas.review import PreviewEditRequest, PreviewRecordOut
 from backend.services.preview_service import preview_service
 
+from backend.models.user import User
+
 router = APIRouter(tags=["Chat and History"])
 
 @router.get("/api/history")
-def get_chat_history(user_id: Optional[str] = None, db: Session = Depends(get_db)):
+def get_chat_history(
+    user_id: Optional[str] = None,
+    email: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     """
     Backend Task 3: Retrieves user chat history and past transformation sessions.
     Formatted to align with frontend Dashboard loadHistory / tx.history structure.
+    Isolated by user account (via user_id or email).
     """
     query = db.query(SessionRecord).order_by(SessionRecord.created_at.desc())
+
+    if email and not user_id:
+        user = db.query(User).filter(User.email == email).first()
+        if user:
+            user_id = user.id
+        else:
+            return []
+
     if user_id:
         query = query.filter(SessionRecord.user_id == user_id)
     
@@ -38,32 +53,66 @@ def get_chat_history(user_id: Optional[str] = None, db: Session = Depends(get_db
 
         previews_by_type = {}
         previews_dict = {}
+        citations = []
         for p in s.previews:
             content = p.edited_preview_content or p.original_preview_content
             previews_by_type[p.output_type] = content
+            c_used = json.loads(p.citations_json) if p.citations_json else []
+            for c in c_used:
+                if isinstance(c, dict) and "id" in c:
+                    if not any(x.get("id") == c.get("id") for x in citations):
+                        citations.append(c)
+                elif isinstance(c, str):
+                    if not any(x.get("label") == c for x in citations):
+                        citations.append({"id": f"src-{len(citations)+1}", "label": c, "kind": "text"})
+
             previews_dict[p.output_type] = {
                 "platform_key": p.output_type,
                 "draft_title": f"{p.output_type} Preview",
                 "draft_content": content,
-                "citations_used": json.loads(p.citations_json) if p.citations_json else [],
+                "citations_used": c_used,
                 "sensitive_items_flagged": len(json.loads(p.sensitive_flags_json)) if p.sensitive_flags_json else 0,
             }
 
         file_names = [f.filename for f in s.files]
         links = json.loads(s.source_links_json) if s.source_links_json else []
 
+        selected_outputs = []
+        if getattr(s, "selected_outputs_json", None):
+            try:
+                selected_outputs = json.loads(s.selected_outputs_json)
+            except Exception:
+                selected_outputs = []
+        if not selected_outputs:
+            selected_outputs = list(previews_by_type.keys()) or [d["outputType"] for d in deliverables]
+
+        params_by_type = {}
+        if getattr(s, "parameters_json", None):
+            try:
+                params_by_type = json.loads(s.parameters_json)
+            except Exception:
+                params_by_type = {}
+
+        # Status: 'completed' if deliverables exist, else 'blueprint_ready'
+        sess_status = getattr(s, "status", None)
+        if not sess_status:
+            sess_status = "completed" if deliverables else "blueprint_ready"
+
         results.append({
             "id": s.id,
+            "sessionId": s.id,
+            "status": sess_status,
             "title": s.title,
             "createdAt": int(s.created_at.timestamp() * 1000),
             "sourceText": s.source_text or "",
             "fileNames": file_names,
             "links": links,
-            "paramsByType": {},
+            "selectedOutputs": selected_outputs,
+            "paramsByType": params_by_type,
             "plan": s.grounding_md or "",
             "previewsByType": previews_by_type,
             "previews": previews_dict,
-            "citations": [],
+            "citations": citations,
             "deliverables": deliverables,
             "groundingMd": s.grounding_md or "",
             "groundingJson": json.loads(s.grounding_json) if s.grounding_json else {},
@@ -144,6 +193,41 @@ def edit_preview_endpoint(session_id: str, payload: PreviewEditRequest, db: Sess
         accept=payload.accept,
     )
     return db_obj
+
+@router.post("/api/previews/{session_id}/autosave")
+async def autosave_preview_endpoint(session_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    Debounced autosave for active preview drafts.
+    Updates edited_preview_content silently without flooding chat logs.
+    """
+    payload = await request.json()
+    output_type = payload.get("output_type") or payload.get("outputType")
+    edited_content = payload.get("edited_content") or payload.get("content") or ""
+    
+    if not output_type:
+        raise HTTPException(status_code=400, detail="output_type is required.")
+        
+    record = (
+        db.query(PreviewRecord)
+        .filter(PreviewRecord.session_id == session_id, PreviewRecord.output_type == output_type)
+        .order_by(PreviewRecord.version.desc())
+        .first()
+    )
+    if not record:
+        # Create record if none exists yet
+        record = PreviewRecord(
+            session_id=session_id,
+            output_type=output_type,
+            version=1,
+            original_preview_content=edited_content,
+            edited_preview_content=edited_content,
+        )
+        db.add(record)
+    else:
+        record.edited_preview_content = edited_content
+        
+    db.commit()
+    return {"status": "autosaved", "sessionId": session_id, "outputType": output_type}
 
 @router.post("/api/chat/message", response_model=ChatMessageOut)
 def send_chat_message(payload: ChatMessageCreate, db: Session = Depends(get_db)):

@@ -15,6 +15,9 @@ class SessionRecord(Base):
     source_links_json = Column(Text, nullable=True)
     grounding_md = Column(Text, nullable=True)
     grounding_json = Column(Text, nullable=True)
+    status = Column(String(50), default="blueprint_ready")
+    selected_outputs_json = Column(Text, nullable=True)
+    parameters_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

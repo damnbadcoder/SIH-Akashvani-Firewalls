@@ -11,7 +11,7 @@ from backend.models.chat import ChatMessage
 try:
     from enhancements.sensitivity_checker import scan_and_redact
 except ImportError:
-    def scan_and_redact(text: str, is_organization: bool = False):
+    def scan_and_redact(text: str, is_organization: bool = False, wrap_html: bool = True):
         return text, []
 
 try:
@@ -57,8 +57,7 @@ class PreviewService:
             flags = p_obj.sensitive_flags or []
             
             if is_organisation and not flags:
-                content, flags = scan_and_redact(content, is_organization=True)
-                p_obj.draft_content = content
+                _, flags = scan_and_redact(content, is_organization=True, wrap_html=False)
                 p_obj.sensitive_flags = flags
 
             readability_report = score_readability(content, key)
@@ -155,7 +154,7 @@ class PreviewService:
 
         flags = []
         if is_organisation:
-            edited_content, flags = scan_and_redact(edited_content, is_organization=True)
+            _, flags = scan_and_redact(edited_content, is_organization=True, wrap_html=False)
 
         # Save to Preview_edited.md
         edited_path = storage_service.save_edited_preview(

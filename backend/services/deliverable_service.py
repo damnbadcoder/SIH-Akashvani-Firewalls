@@ -2,7 +2,7 @@ import json
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
-from final_post_pipeline import generate_final_deliverable
+from final_post_pipeline import generate_final_deliverable, strip_preview_wrappers
 from backend.models.deliverable import DeliverableRecord
 from backend.models.session import SessionRecord
 from backend.models.chat import ChatMessage
@@ -31,7 +31,7 @@ class DeliverableService:
             parameters=parameters,
         )
 
-        final_content = res.final_content
+        final_content = strip_preview_wrappers(res.final_content)
         provenance = [p.model_dump() for p in res.provenance]
         verification = getattr(res, "verification", None)
         relinked_citations = getattr(res, "relinked_citations", None)
@@ -44,16 +44,31 @@ class DeliverableService:
             except Exception:
                 readability = None
 
-        # 1. Persist to PostgreSQL DeliverableRecord
-        deliverable_record = DeliverableRecord(
-            session_id=session_id,
-            output_type=platform_key,
-            content=final_content,
-            parameters_json=json.dumps(parameters),
-            provenance_json=json.dumps(provenance),
-            verification_json=json.dumps(verification) if verification else None,
+        # 1. Persist to PostgreSQL DeliverableRecord (update if exists for session and output_type)
+        existing_deliv = (
+            db.query(DeliverableRecord)
+            .filter(
+                DeliverableRecord.session_id == session_id,
+                DeliverableRecord.output_type == platform_key,
+            )
+            .first()
         )
-        db.add(deliverable_record)
+        if existing_deliv:
+            existing_deliv.content = final_content
+            existing_deliv.parameters_json = json.dumps(parameters)
+            existing_deliv.provenance_json = json.dumps(provenance)
+            existing_deliv.verification_json = json.dumps(verification) if verification else None
+            deliverable_record = existing_deliv
+        else:
+            deliverable_record = DeliverableRecord(
+                session_id=session_id,
+                output_type=platform_key,
+                content=final_content,
+                parameters_json=json.dumps(parameters),
+                provenance_json=json.dumps(provenance),
+                verification_json=json.dumps(verification) if verification else None,
+            )
+            db.add(deliverable_record)
 
         # 2. Persist to PostgreSQL ChatMessage for Chat History
         chat_msg = ChatMessage(

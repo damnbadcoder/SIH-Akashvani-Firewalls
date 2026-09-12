@@ -43,11 +43,13 @@ class ProofcheckRequest(BaseModel):
     previewText: Optional[str] = None
     is_organization: bool = True
     isOrganisation: Optional[bool] = None
+    wrap_html: Optional[bool] = None
     mdContent: Optional[str] = None
     jsonMetadata: Optional[Any] = None
 
 class ProofcheckResponse(BaseModel):
     proofcheckedText: str
+    cleanText: Optional[str] = None
     sensitiveCount: int
     flags: List[Any] = Field(default_factory=list)
 

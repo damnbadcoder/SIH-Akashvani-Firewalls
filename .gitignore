@@ -223,5 +223,8 @@ ingestion_outputs/
 storage/uploads/
 storage/previews/
 *.db
+transmute.db
+transmute.db-journal
+*.db-journal
 
 

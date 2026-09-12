@@ -147,11 +147,13 @@ class OutputType(str, Enum):
 
 class SensitiveDataFlag(BaseModel):
     model_config = ConfigDict(extra="ignore")
+    flag_id: str = "flag-1"
     entity_type: str = "SENSITIVE_DATA"
     matched_text: str = ""
     char_start: int = 0
     char_end: int = 0
     severity: str = "HIGH"
+    suggested_action: str = "REDACT"
 
     # Backward compatibility properties for legacy callers
     @property

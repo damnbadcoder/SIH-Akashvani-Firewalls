@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Markdown from "../components/Markdown";
+import ReviewWorkspace from "../components/ReviewWorkspace";
+import { logoutUser } from "../lib/firebase";
 import {
   generateDeliverable,
   generatePlan,
   proofcheckPreviewDraft,
+  proofcheckSensitiveLocal,
   regenerateDeliverable,
+  autosavePreviewDraft,
+  fetchUserHistory,
 } from "../lib/mock";
 import {
   AUDIENCE_CATEGORIES,
@@ -24,14 +29,17 @@ import type {
   GenerationParams,
   OutputTypeId,
   PlatformPreview,
+  SensitiveDataFlag,
   User,
 } from "../lib/types";
 
-const HISTORY_KEY = "tx.history";
+function getAccountHistoryKey(email?: string): string {
+  return email ? `tx.history.${email}` : "tx.history.anonymous";
+}
 
-function loadHistory(): Generation[] {
+function loadHistoryForAccount(email?: string): Generation[] {
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as Generation[];
+    return JSON.parse(localStorage.getItem(getAccountHistoryKey(email)) ?? "[]") as Generation[];
   } catch {
     return [];
   }
@@ -74,28 +82,103 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
   const [previewsByType, setPreviewsByType] = useState<Partial<Record<OutputTypeId, string>>>({});
+  const [previewFlagsByType, setPreviewFlagsByType] = useState<Partial<Record<OutputTypeId, SensitiveDataFlag[]>>>({});
   const [previewsData, setPreviewsData] = useState<Record<string, PlatformPreview>>({});
   const [groundingMd, setGroundingMd] = useState<string>("");
   const [groundingJson, setGroundingJson] = useState<any>(null);
   const [activePreviewId, setActivePreviewId] = useState<OutputTypeId | null>(null);
   const [previewCitations, setPreviewCitations] = useState<Citation[]>([]);
-  const [previewViewMode, setPreviewViewMode] = useState<"edit" | "preview">("edit");
+  const [previewViewMode, setPreviewViewMode] = useState<"edit" | "preview">("preview");
   const [proofchecking, setProofchecking] = useState<boolean>(false);
   const [gen, setGen] = useState<Generation | null>(null);
   const [activeId, setActiveId] = useState<OutputTypeId | null>(null);
-  const [history, setHistory] = useState<Generation[]>(loadHistory);
-
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [history, setHistory] = useState<Generation[]>(() => loadHistoryForAccount(user?.email));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [refinement, setRefinement] = useState("");
   const [retrying, setRetrying] = useState(false);
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const hasAutoRestored = useRef(false);
+  const autosaveTimeout = useRef<any>(null);
+
+  function restoreBlueprintSession(item: Generation) {
+    const sId = item.sessionId || item.id;
+    setSessionId(sId);
+    setSourceText(item.sourceText || "");
+    setFileNames(item.fileNames || []);
+    setUploadedFiles([]);
+    setLinks((item.links || []).join("\n"));
+
+    const outputIds: OutputTypeId[] =
+      item.selectedOutputs && item.selectedOutputs.length > 0
+        ? item.selectedOutputs
+        : (Object.keys(item.previewsByType || {}) as OutputTypeId[]);
+
+    setSelected(new Set(outputIds));
+    setParamsByType(item.paramsByType || {});
+    setPreviewsByType(item.previewsByType || {});
+    setPreviewsData(item.previews || {});
+    setGroundingMd(item.groundingMd || item.sourceText || "");
+    setGroundingJson(item.groundingJson || null);
+    setPreviewCitations(item.citations || []);
+    setActivePreviewId(outputIds[0] || null);
+    if (item.isOrganisation !== undefined) {
+      setIsOrganisation(item.isOrganisation);
+    }
+    setGen(null);
+    setEditing(false);
+    setDraft("");
+    setGenError("");
+    setPreviewViewMode("preview");
+  }
+
+  useEffect(() => {
+    if (!user?.email) return;
+    let isMounted = true;
+    const historyKey = getAccountHistoryKey(user.email);
+
+    async function syncAccountHistory() {
+      const local = loadHistoryForAccount(user?.email);
+      if (isMounted) setHistory(local);
+
+      const remote = await fetchUserHistory(user?.email, user?.id);
+      if (!isMounted) return;
+
+      const map = new Map<string, Generation>();
+      for (const item of local) {
+        map.set(item.sessionId || item.id, item);
+      }
+      for (const item of remote) {
+        const key = item.sessionId || item.id;
+        const prev = map.get(key);
+        map.set(key, { ...prev, ...item });
+      }
+
+      const merged = Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+      setHistory(merged);
+      localStorage.setItem(historyKey, JSON.stringify(merged));
+
+      // Auto-restore latest in-progress blueprint preview directly on Dashboard launch/login
+      if (!hasAutoRestored.current && merged.length > 0) {
+        const latest = merged[0];
+        if (latest.status === "blueprint_ready") {
+          hasAutoRestored.current = true;
+          restoreBlueprintSession(latest);
+        }
+      }
+    }
+
+    syncAccountHistory();
+    return () => { isMounted = false; };
+  }, [user?.email, user?.id]);
 
   const active: Deliverable | undefined = gen?.deliverables.find(
     (d) => d.outputType === activeId
   );
   const isPreviewStage = (Object.keys(previewsByType).length > 0 || planning) && !gen;
+  const isReviewMode = Object.keys(previewsByType).length > 0 && !gen;
   const currentStage: 1 | 2 | 3 = gen ? 3 : isPreviewStage ? 2 : 1;
   const activeParamId: OutputTypeId | null =
     openParams && selected.has(openParams)
@@ -112,6 +195,7 @@ export default function Dashboard() {
       : null;
 
   function startNewTransformation() {
+    setSessionId(null);
     setGen(null);
     setPreviewsByType({});
     setPreviewsData({});
@@ -130,7 +214,8 @@ export default function Dashboard() {
     setDraft("");
     setRefinement("");
     setGenError("");
-    setPreviewViewMode("edit");
+    setPreviewViewMode("preview");
+    setPreviewFlagsByType({});
   }
 
   function paramsFor(id: OutputTypeId): GenerationParams {
@@ -198,8 +283,14 @@ export default function Dashboard() {
         filesToPass,
         sourceLinks,
         Array.from(selected).map((id) => ({ id, params: paramsFor(id) })),
-        isOrganisation
+        isOrganisation,
+        user?.email,
+        user?.id,
+        sessionId || undefined
       );
+
+      const activeSessionId = result.sessionId || sessionId || crypto.randomUUID();
+      setSessionId(activeSessionId);
       setPreviewsByType(result.previewsByType);
       setPreviewsData(result.previews || {});
       setGroundingMd(result.groundingMd || sourceText);
@@ -208,6 +299,53 @@ export default function Dashboard() {
       setActivePreviewId(first);
       setPreviewCitations(result.citations);
       setGen(null);
+
+      // Add to history ONLY once blueprint preview is created
+      const draftGen: Generation = {
+        id: activeSessionId,
+        sessionId: activeSessionId,
+        status: "blueprint_ready",
+        selectedOutputs: Array.from(selected),
+        createdAt: Date.now(),
+        sourceText,
+        fileNames,
+        links: sourceLinks,
+        paramsByType: Object.fromEntries(
+          Array.from(selected).map((id) => [id, paramsFor(id)])
+        ) as Record<OutputTypeId, GenerationParams>,
+        previewsByType: { ...result.previewsByType },
+        previews: { ...result.previews },
+        plan: first ? result.previewsByType[first] : "",
+        citations: result.citations,
+        deliverables: [],
+        groundingMd: result.groundingMd || sourceText,
+        groundingJson: result.groundingJson || null,
+        isOrganisation,
+      };
+
+      setHistory((prev) => {
+        const filtered = prev.filter((item) => (item.sessionId || item.id) !== activeSessionId);
+        const updated = [draftGen, ...filtered].slice(0, 30);
+        localStorage.setItem(getAccountHistoryKey(user?.email), JSON.stringify(updated));
+        return updated;
+      });
+
+      // Populate initial structured flags from previews
+      const initialFlags: Partial<Record<OutputTypeId, SensitiveDataFlag[]>> = {};
+      if (result.previews) {
+        for (const [key, pObj] of Object.entries(result.previews)) {
+          const matchingId = Array.from(selected).find(
+            (id) =>
+              id === pObj.output_type_id ||
+              id === pObj.platform_key ||
+              outputTypeLabel(id) === key
+          );
+          if (matchingId && pObj.sensitive_flags) {
+            initialFlags[matchingId] = pObj.sensitive_flags;
+          }
+        }
+      }
+      setPreviewFlagsByType(initialFlags);
     } catch (err: any) {
       setGenError(err?.message || "Failed to generate previews. Please ensure the backend server is running.");
     } finally {
@@ -217,33 +355,71 @@ export default function Dashboard() {
 
   function updateActivePreview(text: string) {
     if (!currentPreviewId) return;
-    setPreviewsByType((prev) => ({
-      ...prev,
+    const updated = {
+      ...previewsByType,
       [currentPreviewId]: text,
+    };
+    setPreviewsByType(updated);
+
+    // Debounced autosave to backend and local history
+    if (sessionId) {
+      if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
+      autosaveTimeout.current = setTimeout(() => {
+        autosavePreviewDraft(sessionId, currentPreviewId, text);
+        setHistory((prev) => {
+          const next = prev.map((item) => {
+            if ((item.sessionId || item.id) === sessionId) {
+              return {
+                ...item,
+                previewsByType: { ...(item.previewsByType || {}), [currentPreviewId]: text },
+              };
+            }
+            return item;
+          });
+          localStorage.setItem(getAccountHistoryKey(user?.email), JSON.stringify(next));
+          return next;
+        });
+      }, 1000);
+    }
+  }
+
+  function updateActivePreviewFlags(newFlags: SensitiveDataFlag[]) {
+    if (!currentPreviewId) return;
+    setPreviewFlagsByType((prev) => ({
+      ...prev,
+      [currentPreviewId]: newFlags,
     }));
   }
+
+  // Keep flags accurately synced when switching to Preview mode
+  useEffect(() => {
+    if (previewViewMode === "preview" && isOrganisation && currentPreviewId && previewsByType[currentPreviewId]) {
+      const local = proofcheckSensitiveLocal(previewsByType[currentPreviewId]!);
+      setPreviewFlagsByType((prev) => ({
+        ...prev,
+        [currentPreviewId]: local.flags,
+      }));
+    }
+  }, [previewViewMode, currentPreviewId, isOrganisation]);
 
   async function toggleOrganisationMode(enabled: boolean) {
     setIsOrganisation(enabled);
     if (!isPreviewStage) return;
 
+    if (!enabled) {
+      setPreviewFlagsByType({});
+      return;
+    }
+
     setProofchecking(true);
     try {
-      const updated: Partial<Record<OutputTypeId, string>> = { ...previewsByType };
+      const updatedFlags: Partial<Record<OutputTypeId, SensitiveDataFlag[]>> = {};
       for (const id of selected) {
         const text = previewsByType[id] || "";
-        if (enabled) {
-          const res = await proofcheckPreviewDraft(text, groundingMd, groundingJson);
-          updated[id] = res.auditedText;
-        } else {
-          // Remove sensitive tags when switching back to Normal mode
-          const clean = text
-            .replace(/^>\s*⚠️\s*\*\*ORGANISATION.*?\n\n/s, "")
-            .replace(/<span style="color: red; font-weight: bold;">\[SENSITIVE:\s*([^\(]+?)(?:\s*\([^\)]+\))?\]<\/span>/g, "$1");
-          updated[id] = clean;
-        }
+        const res = await proofcheckPreviewDraft(text, groundingMd, groundingJson, false);
+        updatedFlags[id] = res.flags;
       }
-      setPreviewsByType(updated);
+      setPreviewFlagsByType(updatedFlags);
     } finally {
       setProofchecking(false);
     }
@@ -254,13 +430,14 @@ export default function Dashboard() {
     setProofchecking(true);
     try {
       const res = await proofcheckPreviewDraft(
-        previewsByType[currentPreviewId],
+        previewsByType[currentPreviewId]!,
         groundingMd,
-        groundingJson
+        groundingJson,
+        false
       );
-      setPreviewsByType((prev) => ({
+      setPreviewFlagsByType((prev) => ({
         ...prev,
-        [currentPreviewId]: res.auditedText,
+        [currentPreviewId]: res.flags,
       }));
     } finally {
       setProofchecking(false);
@@ -272,20 +449,15 @@ export default function Dashboard() {
     setGenerating(true);
     const sourceLinks = links.split("\n").map((link) => link.trim()).filter(Boolean);
 
-    // If Organisation mode is active, run pre-final proofcheck pass on the current draft
+    // Operator-approved, clean text with resolved redactions is passed directly
     const verifiedPreviews: Partial<Record<OutputTypeId, string>> = { ...previewsByType };
-    if (isOrganisation && currentPreviewId && verifiedPreviews[currentPreviewId]) {
-      const checked = await proofcheckPreviewDraft(
-        verifiedPreviews[currentPreviewId]!,
-        groundingMd,
-        groundingJson
-      );
-      verifiedPreviews[currentPreviewId] = checked.auditedText;
-      setPreviewsByType(verifiedPreviews);
-    }
+    const currentSessionId = sessionId || crypto.randomUUID();
 
     const g: Generation = {
-      id: crypto.randomUUID(),
+      id: currentSessionId,
+      sessionId: currentSessionId,
+      status: "completed",
+      selectedOutputs: Array.from(selected),
       createdAt: Date.now(),
       sourceText,
       fileNames,
@@ -313,16 +485,22 @@ export default function Dashboard() {
           verifiedPreviews[id],
           isOrganisation,
           groundingMd,
-          groundingJson
+          groundingJson,
+          currentSessionId,
+          user?.email,
+          user?.id
         );
         g.deliverables.push({ outputType: id, content, retries: 0 });
         setGen({ ...g, deliverables: [...g.deliverables] });
         if (id === first) setActiveId(id);
       }
-      const done = { ...g, deliverables: [...g.deliverables] };
-      const nextHistory = [done, ...history].slice(0, 20);
-      setHistory(nextHistory);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+      const done: Generation = { ...g, deliverables: [...g.deliverables], status: "completed" };
+      setHistory((prev) => {
+        const filtered = prev.filter((item) => (item.sessionId || item.id) !== currentSessionId);
+        const nextHistory = [done, ...filtered].slice(0, 30);
+        localStorage.setItem(getAccountHistoryKey(user?.email), JSON.stringify(nextHistory));
+        return nextHistory;
+      });
       setPreviewsByType({});
       setPreviewsData({});
       setActivePreviewId(null);
@@ -357,18 +535,24 @@ export default function Dashboard() {
   }
 
   function openHistory(item: Generation) {
-    setGen(item);
-    setPreviewsByType({});
-    setActivePreviewId(null);
-    setPreviewCitations(item.citations);
-    setActiveId(item.deliverables[0]?.outputType ?? null);
-    setSelected(new Set(item.deliverables.map((d) => d.outputType)));
-    setParamsByType(item.paramsByType);
-    setSourceText(item.sourceText);
-    setFileNames(item.fileNames);
-    setLinks(item.links.join("\n"));
-    setEditing(false);
-    setOpenParams(null);
+    const isBlueprint = item.status === "blueprint_ready" || (!item.deliverables || item.deliverables.length === 0);
+    if (isBlueprint) {
+      restoreBlueprintSession(item);
+    } else {
+      setSessionId(item.sessionId || item.id);
+      setGen(item);
+      setPreviewsByType(item.previewsByType || {});
+      setActivePreviewId(null);
+      setPreviewCitations(item.citations);
+      setActiveId(item.deliverables[0]?.outputType ?? null);
+      setSelected(new Set(item.deliverables.map((d) => d.outputType)));
+      setParamsByType(item.paramsByType);
+      setSourceText(item.sourceText);
+      setFileNames(item.fileNames);
+      setLinks(item.links.join("\n"));
+      setEditing(false);
+      setOpenParams(null);
+    }
     setHistoryOpen(false);
   }
 
@@ -401,8 +585,8 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   }
 
-  function logout() {
-    localStorage.removeItem("tx.user");
+  async function logout() {
+    await logoutUser();
     navigate("/login", { replace: true });
   }
 
@@ -442,6 +626,14 @@ export default function Dashboard() {
         </nav>
 
         <div className="topbar-right">
+          {user.photoURL && (
+            <img
+              src={user.photoURL}
+              alt={user.name}
+              className="topbar-avatar"
+              referrerPolicy="no-referrer"
+            />
+          )}
           <span className="user-chip">{user.name} · <em>{user.userType}</em></span>
           <button className="ghost sm" onClick={logout}>Sign out</button>
         </div>
@@ -458,7 +650,18 @@ export default function Dashboard() {
         </div>
 
         <div className="sidebar-user">
-          <div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div>
+          <div className="avatar">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={user.name}
+                className="avatar-img"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              user.name.slice(0, 1).toUpperCase()
+            )}
+          </div>
           <div><strong>{user.name}</strong><span>{user.email}</span><span>{user.organisation || user.userType}</span></div>
         </div>
 
@@ -470,20 +673,69 @@ export default function Dashboard() {
           <p className="muted sidebar-empty">No generations yet.</p>
         ) : (
           <ul className="history-list">
-            {history.map((item) => (
-              <li key={item.id}>
-                <button onClick={() => openHistory(item)}>
-                  <strong>{item.deliverables.map((d) => outputTypeLabel(d.outputType)).join(", ")}</strong>
-                  <span className="muted">{new Date(item.createdAt).toLocaleDateString()} · {sourceSummary(item)}</span>
-                </button>
-              </li>
-            ))}
+            {history.map((item) => {
+              const isBlueprint = item.status === "blueprint_ready" || (!item.deliverables || item.deliverables.length === 0);
+              const label =
+                item.deliverables && item.deliverables.length > 0
+                  ? item.deliverables.map((d) => outputTypeLabel(d.outputType)).join(", ")
+                  : item.selectedOutputs && item.selectedOutputs.length > 0
+                  ? item.selectedOutputs.map((id) => outputTypeLabel(id)).join(", ")
+                  : item.previewsByType && Object.keys(item.previewsByType).length > 0
+                  ? Object.keys(item.previewsByType).map((id) => outputTypeLabel(id as OutputTypeId)).join(", ")
+                  : "Blueprint Draft";
+
+              return (
+                <li key={item.sessionId || item.id}>
+                  <button onClick={() => openHistory(item)}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", width: "100%" }}>
+                      <strong>{label}</strong>
+                      <span className={`status-tag ${isBlueprint ? "blueprint" : "completed"}`}>
+                        {isBlueprint ? "Blueprint Ready" : "Completed"}
+                      </span>
+                    </div>
+                    <span className="muted">
+                      {new Date(item.createdAt).toLocaleDateString()} · {sourceSummary(item)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </aside>
 
-      <div className="workspace">
-        <main className="col-input">
+      <div className={`workspace ${isReviewMode ? "review-layout" : ""}`}>
+        {isReviewMode ? (
+          <ReviewWorkspace
+            currentPreviewId={currentPreviewId}
+            selected={selected}
+            previewsByType={previewsByType}
+            previewFlagsByType={previewFlagsByType}
+            previewCitations={previewCitations}
+            sourceText={sourceText}
+            fileNames={fileNames}
+            links={links}
+            groundingMd={groundingMd}
+            groundingJson={groundingJson}
+            isOrganisation={isOrganisation}
+            previewViewMode={previewViewMode}
+            generating={generating}
+            proofchecking={proofchecking}
+            onSelectPreviewId={setActivePreviewId}
+            onViewModeChange={setPreviewViewMode}
+            onContentChange={updateActivePreview}
+            onFlagsChange={updateActivePreviewFlags}
+            onToggleOrganisationMode={toggleOrganisationMode}
+            onRerunProofcheck={rerunProofcheck}
+            onFinalizeGeneration={finalizeGeneration}
+            onBackToParameters={() => {
+              setPreviewsByType({});
+              setActivePreviewId(null);
+            }}
+          />
+        ) : (
+          <>
+            <main className="col-input">
           <h2 className="col-title">1 · Source content</h2>
           <div className="card">
             <div className="segmented full">
@@ -554,7 +806,7 @@ export default function Dashboard() {
               );
             })}
           </div>
-          {!isPreviewStage && !gen && (
+          {!gen && (
             <button className="primary generate" onClick={createPreview} disabled={planning}>
               {planning ? "Preparing preview…" : `Create editable preview${selected.size ? ` · ${selected.size} output${selected.size === 1 ? "" : "s"}` : ""}`}
             </button>
@@ -568,8 +820,8 @@ export default function Dashboard() {
         </main>
 
         <section className="col-output">
-          {/* STAGE 1: Parameters beside Source Content (Visible before preview is requested) */}
-          {!gen && !isPreviewStage && (
+          {/* STAGE 1: Parameters beside Source Content (Visible before preview is requested or during planning) */}
+          {!gen && (
             <>
               <div className="section-header">
                 <h2 className="col-title">
@@ -577,297 +829,167 @@ export default function Dashboard() {
                 </h2>
               </div>
 
-              <div className="mode-toggle-card">
-                <div className="mode-toggle-header">
-                  <strong>Auditing & Verification Mode</strong>
-                  <span className={`mode-badge ${isOrganisation ? "org" : "normal"}`}>
-                    {isOrganisation ? "Organisation Active" : "Normal Mode"}
-                  </span>
-                </div>
-                <div className="segmented full">
-                  <button
-                    type="button"
-                    className={isOrganisation ? "on" : ""}
-                    onClick={() => toggleOrganisationMode(true)}
-                  >
-                    🏢 Organisation
-                  </button>
-                  <button
-                    type="button"
-                    className={!isOrganisation ? "on" : ""}
-                    onClick={() => toggleOrganisationMode(false)}
-                  >
-                    👤 Normal / Someone
-                  </button>
-                </div>
-                <p className="mode-hint">
-                  {isOrganisation
-                    ? "🛡️ Secondary proofchecking active: Scans and highlights operational leaks (internal IPs, credentials, classified entities, PII) in red before final deliverable generation."
-                    : "Standard synthesis: Direct blueprint without sensitive highlight inspection."}
-                </p>
-              </div>
-
-              {selected.size === 0 ? (
-                <div className="card empty">
-                  <p>No output types selected.</p>
-                  <p className="muted">
-                    Select one or more output types in Step 2 to configure audience, tone, detail level, and language.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {selected.size > 1 && (
-                    <div className="tabs param-tabs" role="tablist">
-                      {Array.from(selected).map((id) => (
-                        <button
-                          key={id}
-                          role="tab"
-                          aria-selected={id === activeParamId}
-                          className={id === activeParamId ? "on" : ""}
-                          onClick={() => setOpenParams(id)}
-                        >
-                          {outputTypeLabel(id)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {activeParamId && (
-                    <div className="card param-grid">
-                      <label>
-                        Audience category
-                        <select
-                          value={paramsFor(activeParamId).audienceCategory}
-                          onChange={(e) =>
-                            updateParams(activeParamId, {
-                              audienceCategory: e.target.value as GenerationParams["audienceCategory"],
-                            })
-                          }
-                        >
-                          {AUDIENCE_CATEGORIES.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Target audience <span className="opt">(optional)</span>
-                        <input
-                          placeholder="e.g. bank CISOs, district collectors"
-                          value={paramsFor(activeParamId).targetAudience}
-                          onChange={(e) =>
-                            updateParams(activeParamId, { targetAudience: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Tone
-                        <select
-                          value={paramsFor(activeParamId).tone}
-                          onChange={(e) =>
-                            updateParams(activeParamId, {
-                              tone: e.target.value as GenerationParams["tone"],
-                            })
-                          }
-                        >
-                          {TONES.map((tone) => (
-                            <option key={tone} value={tone}>
-                              {tone}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Level of detail
-                        <select
-                          value={paramsFor(activeParamId).detail}
-                          onChange={(e) =>
-                            updateParams(activeParamId, {
-                              detail: e.target.value as GenerationParams["detail"],
-                            })
-                          }
-                        >
-                          {DETAIL_LEVELS.map((detail) => (
-                            <option key={detail} value={detail}>
-                              {detail}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Objective
-                        <select
-                          value={paramsFor(activeParamId).objective}
-                          onChange={(e) =>
-                            updateParams(activeParamId, {
-                              objective: e.target.value as GenerationParams["objective"],
-                            })
-                          }
-                        >
-                          {OBJECTIVES.map((objective) => (
-                            <option key={objective} value={objective}>
-                              {objective}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Language
-                        <select
-                          value={paramsFor(activeParamId).language}
-                          onChange={(e) =>
-                            updateParams(activeParamId, { language: e.target.value })
-                          }
-                        >
-                          {LANGUAGES.map((language) => (
-                            <option key={language} value={language}>
-                              {language}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-
-          {/* STAGE 2: Editable Preview (Visible after clicking 'Create editable preview') */}
-          {isPreviewStage && (
-            <>
-              <div className="section-header">
-                <h2 className="col-title">
-                  3 · Editable Preview {currentPreviewId ? `— ${outputTypeLabel(currentPreviewId)}` : ""}
-                </h2>
-                {!planning && (
-                  <button
-                    className="ghost sm"
-                    onClick={() => {
-                      setPreviewsByType({});
-                      setActivePreviewId(null);
-                    }}
-                  >
-                    ← Back to parameters
-                  </button>
-                )}
-              </div>
-
               {planning ? (
                 <div className="card empty">
                   <p className="pulse">Analysing source context and synthesizing tailored blueprints…</p>
                 </div>
               ) : (
-                <div className="card preview-card">
-                  {selected.size > 1 && (
-                    <div className="tabs param-tabs" role="tablist">
-                      {Array.from(selected).map((id) => (
-                        <button
-                          key={id}
-                          role="tab"
-                          aria-selected={id === currentPreviewId}
-                          className={id === currentPreviewId ? "on" : ""}
-                          onClick={() => setActivePreviewId(id)}
-                        >
-                          {outputTypeLabel(id)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {isOrganisation && (
-                    <div className="audit-alert-banner">
-                      <span>
-                        🛡️ <strong>Organisation Sensitivity Audit:</strong> Operational data (internal IPs, credentials, classified entities, PII) flagged in <strong style={{ color: "#ff4d4f" }}>red</strong>. Review and redact before final deliverable generation.
+                <>
+                  <div className="mode-toggle-card">
+                    <div className="mode-toggle-header">
+                      <strong>Auditing & Verification Mode</strong>
+                      <span className={`mode-badge ${isOrganisation ? "org" : "normal"}`}>
+                        {isOrganisation ? "Organisation Active" : "Normal Mode"}
                       </span>
+                    </div>
+                    <div className="segmented full">
                       <button
                         type="button"
-                        className="ghost sm"
-                        onClick={rerunProofcheck}
-                        disabled={proofchecking}
+                        className={isOrganisation ? "on" : ""}
+                        onClick={() => toggleOrganisationMode(true)}
                       >
-                        {proofchecking ? "Proofchecking…" : "Re-check Sensitive Data"}
+                        🏢 Organisation
+                      </button>
+                      <button
+                        type="button"
+                        className={!isOrganisation ? "on" : ""}
+                        onClick={() => toggleOrganisationMode(false)}
+                      >
+                        👤 Normal / Someone
                       </button>
                     </div>
-                  )}
-
-                  <div className="preview-toolbar">
-                    <span className="muted">
-                      Tailored blueprint for <strong>{currentPreviewId ? outputTypeLabel(currentPreviewId) : "deliverable"}</strong>
-                    </span>
-                    <div className="preview-actions">
-                      <div className="segmented">
-                        <button
-                          type="button"
-                          className={isOrganisation ? "on" : ""}
-                          onClick={() => toggleOrganisationMode(true)}
-                          title="Organisation mode with sensitive data proofchecking"
-                        >
-                          🏢 Org
-                        </button>
-                        <button
-                          type="button"
-                          className={!isOrganisation ? "on" : ""}
-                          onClick={() => toggleOrganisationMode(false)}
-                          title="Normal mode"
-                        >
-                          👤 Normal
-                        </button>
-                      </div>
-                      <div className="segmented">
-                        <button
-                          type="button"
-                          className={previewViewMode === "edit" ? "on" : ""}
-                          onClick={() => setPreviewViewMode("edit")}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={previewViewMode === "preview" ? "on" : ""}
-                          onClick={() => setPreviewViewMode("preview")}
-                        >
-                          Preview
-                        </button>
-                      </div>
-                    </div>
+                    <p className="mode-hint">
+                      {isOrganisation
+                        ? "🛡️ Secondary proofchecking active: Scans and highlights operational leaks (internal IPs, credentials, classified entities, PII) in red before final deliverable generation."
+                        : "Standard synthesis: Direct blueprint without sensitive highlight inspection."}
+                    </p>
                   </div>
 
-                  {previewViewMode === "edit" ? (
-                    <textarea
-                      className="md-editor preview-editor"
-                      value={currentPreviewId ? previewsByType[currentPreviewId] ?? "" : ""}
-                      onChange={(e) => updateActivePreview(e.target.value)}
-                    />
+                  {selected.size === 0 ? (
+                    <div className="card empty">
+                      <p>No output types selected.</p>
+                      <p className="muted">
+                        Select one or more output types in Step 2 to configure audience, tone, detail level, and language.
+                      </p>
+                    </div>
                   ) : (
-                    <div className="preview-rendered-pane">
-                      <Markdown content={currentPreviewId ? previewsByType[currentPreviewId] ?? "" : ""} />
-                    </div>
+                    <>
+                      {selected.size > 1 && (
+                        <div className="tabs param-tabs" role="tablist">
+                          {Array.from(selected).map((id) => (
+                            <button
+                              key={id}
+                              role="tab"
+                              aria-selected={id === activeParamId}
+                              className={id === activeParamId ? "on" : ""}
+                              onClick={() => setOpenParams(id)}
+                            >
+                              {outputTypeLabel(id)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {activeParamId && (
+                        <div className="card param-grid">
+                          <label>
+                            Audience category
+                            <select
+                              value={paramsFor(activeParamId).audienceCategory}
+                              onChange={(e) =>
+                                updateParams(activeParamId, {
+                                  audienceCategory: e.target.value as GenerationParams["audienceCategory"],
+                                })
+                              }
+                            >
+                              {AUDIENCE_CATEGORIES.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Target audience <span className="opt">(optional)</span>
+                            <input
+                              placeholder="e.g. bank CISOs, district collectors"
+                              value={paramsFor(activeParamId).targetAudience}
+                              onChange={(e) =>
+                                updateParams(activeParamId, { targetAudience: e.target.value })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Tone
+                            <select
+                              value={paramsFor(activeParamId).tone}
+                              onChange={(e) =>
+                                updateParams(activeParamId, {
+                                  tone: e.target.value as GenerationParams["tone"],
+                                })
+                              }
+                            >
+                              {TONES.map((tone) => (
+                                <option key={tone} value={tone}>
+                                  {tone}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Level of detail
+                            <select
+                              value={paramsFor(activeParamId).detail}
+                              onChange={(e) =>
+                                updateParams(activeParamId, {
+                                  detail: e.target.value as GenerationParams["detail"],
+                                })
+                              }
+                            >
+                              {DETAIL_LEVELS.map((detail) => (
+                                <option key={detail} value={detail}>
+                                  {detail}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Objective
+                            <select
+                              value={paramsFor(activeParamId).objective}
+                              onChange={(e) =>
+                                updateParams(activeParamId, {
+                                  objective: e.target.value as GenerationParams["objective"],
+                                })
+                              }
+                            >
+                              {OBJECTIVES.map((objective) => (
+                                <option key={objective} value={objective}>
+                                  {objective}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Language
+                            <select
+                              value={paramsFor(activeParamId).language}
+                              onChange={(e) =>
+                                updateParams(activeParamId, { language: e.target.value })
+                              }
+                            >
+                              {LANGUAGES.map((language) => (
+                                <option key={language} value={language}>
+                                  {language}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      )}
+                    </>
                   )}
-
-                  <div className="citation-box">
-                    <strong>Suggested citations</strong>
-                    <p className="muted">Reference these sources when claims are included in deliverables.</p>
-                    <div className="citation-list">
-                      {previewCitations.map((citation) => (
-                        <span key={citation.id} className="citation-chip">
-                          {citation.kind === "file" ? "▣" : citation.kind === "link" ? "↗" : "¶"} {citation.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    className="primary"
-                    onClick={finalizeGeneration}
-                    disabled={generating}
-                  >
-                    {generating
-                      ? "Writing final deliverables…"
-                      : `Write Final Deliverables${selected.size > 1 ? ` (${selected.size} formats)` : ""}`}
-                  </button>
-                </div>
+                </>
               )}
             </>
           )}
@@ -937,6 +1059,8 @@ export default function Dashboard() {
             </>
           )}
         </section>
+          </>
+        )}
       </div>
     </div>
   );

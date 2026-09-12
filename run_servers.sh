@@ -27,13 +27,18 @@ if [ -d "$SNAP_PY_PACKAGES" ]; then
     export PYTHONPATH="$SNAP_PY_SITE:$SNAP_PY_PACKAGES:$PYTHONPATH"
 fi
 
-# Start backend
-python3 server.py &
+# Start backend if not already active
+if python3 -c "import socket; s = socket.socket(); s.settimeout(0.5); exit(0 if s.connect_ex(('127.0.0.1', 8000)) == 0 else 1)" 2>/dev/null; then
+    echo "[*] Backend is already running on http://localhost:8000"
+else
+    echo "[*] Starting backend synthesis server on port 8000..."
+    python3 server.py &
+fi
 
 # Start frontend
 cd frontend
-if [ ! -d "node_modules/rehype-raw" ]; then
-    echo "[*] Installing missing frontend dependencies..."
+if [ ! -d "node_modules/firebase" ] || [ ! -d "node_modules/rehype-raw" ]; then
+    echo "[*] Installing missing frontend dependencies (including firebase)..."
     npm install
 fi
 npm run dev &

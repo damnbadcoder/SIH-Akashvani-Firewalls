@@ -1,8 +1,10 @@
 import type {
   Citation,
+  Generation,
   GenerationParams,
   OutputTypeId,
   PlatformPreview,
+  SensitiveDataFlag,
 } from "./types";
 import { outputTypeLabel } from "./types";
 
@@ -12,16 +14,17 @@ const BACKEND_URLS = [
   "http://localhost:8000",
 ];
 
-async function callApi(endpoint: string, init: RequestInit): Promise<Response> {
+async function callApi(endpoint: string, init?: RequestInit): Promise<Response> {
+  const reqInit = init || { method: "GET" };
   if (endpoint.startsWith("http")) {
-    return await fetch(endpoint, init);
+    return await fetch(endpoint, reqInit);
   }
 
   let lastError: any = null;
   for (const base of BACKEND_URLS) {
     try {
       const url = `${base}${endpoint}`;
-      const res = await fetch(url, init);
+      const res = await fetch(url, reqInit);
       if (res.status !== 502 && res.status !== 504 && res.status !== 404) {
         return res;
       }
@@ -44,61 +47,118 @@ function sleep(ms: number) {
 export function proofcheckSensitiveLocal(text: string): {
   auditedText: string;
   sensitiveCount: number;
+  flags: SensitiveDataFlag[];
 } {
-  if (!text) return { auditedText: "", sensitiveCount: 0 };
+  if (!text) return { auditedText: "", sensitiveCount: 0, flags: [] };
 
-  let count = 0;
-  let audited = text;
+  // Protect citation markers like [^src-1]
+  const citationRegex = /\[\^(?:src|aud|vid|doc|fact|[a-zA-Z0-9_\-]+)\]/gi;
+  const protectedSpans: Array<{ start: number; end: number }> = [];
+  let cm: RegExpExecArray | null;
+  while ((cm = citationRegex.exec(text)) !== null) {
+    protectedSpans.push({ start: cm.index, end: cm.index + cm[0].length });
+  }
 
-  const patterns: Array<{ regex: RegExp; label: string }> = [
-    // 1. RFC 1918 Private IPs & local hostnames
+  // Protect already-redacted tokens: [REDACTED: ...], [REDACTED], [RESTRICTED]
+  const redactedRegex = /\[REDACTED(?::\s*[^\]]+)?\]|\[RESTRICTED\]/gi;
+  let rm: RegExpExecArray | null;
+  while ((rm = redactedRegex.exec(text)) !== null) {
+    protectedSpans.push({ start: rm.index, end: rm.index + rm[0].length });
+  }
+
+  // Protect classification banners: lines starting with CLASSIFICATION:, **CLASSIFICATION:**, TLP:, etc.
+  const classBannerRegex = /(?:^|\n)\s*(?:\*{1,2})?(?:CLASSIFICATION|TLP|TRAFFIC LIGHT PROTOCOL|HANDLING INSTRUCTIONS?)\s*:(?:[^\n]+)/gi;
+  let bm: RegExpExecArray | null;
+  while ((bm = classBannerRegex.exec(text)) !== null) {
+    protectedSpans.push({ start: bm.index, end: bm.index + bm[0].length });
+  }
+
+  const patterns: Array<{ regex: RegExp; type: string; severity: "CRITICAL" | "HIGH" | "MEDIUM" }> = [
     {
       regex: /\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g,
-      label: "Internal IP",
+      type: "INTERNAL_IP",
+      severity: "CRITICAL",
     },
-    // 2. Credentials, secrets & tokens
     {
       regex: /\b((?:password|passwd|pwd|secret|api[_-]?key|auth[_-]?token|bearer[_-]?token|rootkit[_-]?key)\s*[:=]\s*["']?[^\s"',;]{4,}["']?)/gi,
-      label: "Credential/Secret",
+      type: "CREDENTIAL",
+      severity: "CRITICAL",
     },
-    // 3. Classified Operational Markings
-    {
-      regex: /\b(TOP\s+SECRET(?:\s*\/\/\s*[A-Z]+)?|SECRET\s*\/\/\s*NOFORN|RESTRICTED\s+OPERATION|INTERNAL\s+ONLY(?:\s*-\s*NOT\s+FOR\s+PUBLIC)?|OPERATION\s+SHADOWGATE\s+INTERNAL)\b/gi,
-      label: "Classified Entity",
-    },
-    // 4. Internal Hostnames & database nodes
-    {
-      regex: /\b([a-zA-Z0-9_\-\.]+\.(?:internal|local|corp|intranet|lan)|core-db-prod-\d+|bank-hsm-\d+|dc-internal-auth)\b/gi,
-      label: "Internal Host",
-    },
-    // 5. Internal PII & Employee IDs
-    {
-      regex: /\b([a-zA-Z0-9_.+-]+@(?:[a-zA-Z0-9-]+\.)?(?:internal|local|corp|ntro\.internal))\b|\b(EMP-[0-9]{4,8}|UID-[0-9]{4,8})\b/gi,
-      label: "Unredacted PII",
-    },
-    // 6. Offensive Exploit Payloads
     {
       regex: /(?:\\x[0-9a-fA-F]{2}){4,}|\b(?:curl|wget)\s+[^|\n]+(?:\|\s*(?:bash|sh))\b/gi,
-      label: "Exploit Payload",
+      type: "EXPLOIT_PAYLOAD",
+      severity: "CRITICAL",
+    },
+    {
+      regex: /\b(TOP\s+SECRET(?:\s*\/\/\s*[A-Z]+)?|SECRET\s*\/\/\s*NOFORN|RESTRICTED\s+OPERATION|INTERNAL\s+ONLY(?:\s*-\s*NOT\s+FOR\s+PUBLIC)?|OPERATION\s+SHADOWGATE\s+INTERNAL)\b/gi,
+      type: "CLASSIFIED_MARKING",
+      severity: "HIGH",
+    },
+    {
+      regex: /\b([a-zA-Z0-9_\-\.]+\.(?:internal|local|corp|intranet|lan)|core-db-prod-\d+|bank-hsm-\d+|dc-internal-auth)\b/gi,
+      type: "INTERNAL_HOST",
+      severity: "HIGH",
+    },
+    {
+      regex: /\b([a-zA-Z0-9_.+-]+@(?:[a-zA-Z0-9-]+\.)?(?:internal|local|corp|ntro\.internal))\b|\b(EMP-[0-9]{4,8}|UID-[0-9]{4,8})\b/gi,
+      type: "INTERNAL_PII",
+      severity: "HIGH",
     },
   ];
 
-  // Avoid double-wrapping
+  const rawFlags: Array<{
+    type: string;
+    matched_text: string;
+    char_start: number;
+    char_end: number;
+    severity: "CRITICAL" | "HIGH" | "MEDIUM";
+  }> = [];
+
   for (const p of patterns) {
-    audited = audited.replace(p.regex, (match) => {
-      if (match.includes("style=\"color: red")) return match;
-      count++;
-      return `<span style="color: red; font-weight: bold;">[SENSITIVE: ${match} (${p.label})]</span>`;
-    });
+    p.regex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = p.regex.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      const overlaps = protectedSpans.some(
+        (span) => Math.max(start, span.start) < Math.min(end, span.end)
+      );
+      if (!overlaps) {
+        rawFlags.push({
+          type: p.type,
+          matched_text: match[0],
+          char_start: start,
+          char_end: end,
+          severity: p.severity,
+        });
+      }
+    }
   }
 
-  if (count > 0 && !audited.startsWith("> ⚠️ **ORGANISATION SENSITIVITY AUDIT:**")) {
-    audited =
-      `> ⚠️ **ORGANISATION SENSITIVITY AUDIT:** Identified ${count} operational sensitivity item(s). Sensitive items are flagged in red. Review and redact before final deliverable generation.\n\n` +
-      audited;
+  rawFlags.sort((a, b) => (b.char_end - b.char_start) - (a.char_end - a.char_start) || a.char_start - b.char_start);
+  const selected: typeof rawFlags = [];
+  for (const f of rawFlags) {
+    const overlaps = selected.some(
+      (s) => Math.max(f.char_start, s.char_start) < Math.min(f.char_end, s.char_end)
+    );
+    if (!overlaps) {
+      selected.push(f);
+    }
   }
 
-  return { auditedText: audited, sensitiveCount: count };
+  selected.sort((a, b) => a.char_start - b.char_start);
+
+  const flags: SensitiveDataFlag[] = selected.map((f, i) => ({
+    flag_id: `flag-${i + 1}`,
+    entity_type: f.type,
+    matched_text: f.matched_text,
+    char_start: f.char_start,
+    char_end: f.char_end,
+    severity: f.severity,
+    suggested_action: "REDACT",
+  }));
+
+  return { auditedText: text, sensitiveCount: flags.length, flags };
 }
 
 // ─────────────────────────────────────────────
@@ -389,7 +449,10 @@ export async function generatePlan(
   files: (File | string)[],
   links: string[],
   outputs: { id: OutputTypeId; params: GenerationParams }[],
-  isOrganisation: boolean = false
+  isOrganisation: boolean = false,
+  email?: string,
+  userId?: string,
+  existingSessionId?: string
 ): Promise<{
   plan: string;
   previewsByType: Record<OutputTypeId, string>;
@@ -397,6 +460,9 @@ export async function generatePlan(
   citations: Citation[];
   groundingMd?: string;
   groundingJson?: any;
+  sessionId?: string;
+  status?: "blueprint_ready" | "completed";
+  selectedOutputs?: OutputTypeId[];
 }> {
   // Attempt backend server first
   try {
@@ -406,6 +472,9 @@ export async function generatePlan(
     formData.append("outputs", JSON.stringify(outputs));
     formData.append("isOrganisation", String(isOrganisation));
     formData.append("userType", isOrganisation ? "Organisation" : "Normal");
+    if (email) formData.append("email", email);
+    if (userId) formData.append("userId", userId);
+    if (existingSessionId) formData.append("sessionId", existingSessionId);
 
     for (const f of files) {
       if (f instanceof File) {
@@ -454,6 +523,9 @@ export async function generatePlan(
         citations: data.citations || [],
         groundingMd: data.grounding_md,
         groundingJson: data.grounding_json,
+        sessionId: data.sessionId || data.session_id,
+        status: data.status || "blueprint_ready",
+        selectedOutputs: outputs.map((o) => o.id),
       };
     } else {
       const errText = await res.text().catch(() => "");
@@ -514,12 +586,14 @@ export async function generatePlan(
   for (const out of outputs) {
     let draft = buildFormatBlueprint(out.id, sourceText, out.params);
     let flaggedCount = 0;
+    let flags: SensitiveDataFlag[] = [];
 
     // Apply pre-final proofcheck if Organisation toggle is active
     if (isOrganisation) {
       const checked = proofcheckSensitiveLocal(draft);
       draft = checked.auditedText;
       flaggedCount = checked.sensitiveCount;
+      flags = checked.flags;
     }
 
     previewsByType[out.id] = draft;
@@ -532,6 +606,7 @@ export async function generatePlan(
       draft_content: draft,
       citations_used: citations.slice(0, 2).map((c) => c.id),
       sensitive_items_flagged: flaggedCount,
+      sensitive_flags: flags,
     };
   }
 
@@ -543,8 +618,9 @@ export async function generatePlan(
 export async function proofcheckPreviewDraft(
   draft: string,
   mdContent: string = "",
-  jsonMetadata: any = null
-): Promise<{ auditedText: string; sensitiveCount: number }> {
+  jsonMetadata: any = null,
+  wrapHtml: boolean = false
+): Promise<{ auditedText: string; sensitiveCount: number; flags: SensitiveDataFlag[] }> {
   try {
     const res = await callApi("/api/proofcheck", {
       method: "POST",
@@ -553,6 +629,7 @@ export async function proofcheckPreviewDraft(
         text: draft,
         previewText: draft,
         is_organization: true,
+        wrap_html: wrapHtml,
         mdContent,
         jsonMetadata,
       }),
@@ -560,13 +637,95 @@ export async function proofcheckPreviewDraft(
     if (res.ok) {
       const data = await res.json();
       return {
-        auditedText: data.proofcheckedText,
+        auditedText: wrapHtml ? data.proofcheckedText : (data.cleanText || draft),
         sensitiveCount: data.sensitiveCount,
+        flags: data.flags || [],
       };
     }
   } catch {}
 
   return proofcheckSensitiveLocal(draft);
+}
+
+function stripElementByClass(text: string, tag: string, className: string): string {
+  let lower = text.toLowerCase();
+  const openPrefix = `<${tag}`;
+  const classStr = className.toLowerCase();
+  let startPos = 0;
+
+  while (true) {
+    const idx = lower.indexOf(openPrefix, startPos);
+    if (idx === -1) break;
+    const tagEnd = lower.indexOf(">", idx);
+    if (tagEnd === -1) break;
+    const tagHeader = lower.slice(idx, tagEnd + 1);
+    if (!tagHeader.includes(classStr)) {
+      startPos = idx + 1;
+      continue;
+    }
+
+    let depth = 1;
+    let curr = tagEnd + 1;
+    const closeTag = `</${tag}>`;
+    while (depth > 0 && curr < text.length) {
+      if (lower.startsWith(openPrefix, curr)) {
+        depth++;
+        curr += openPrefix.length;
+      } else if (lower.startsWith(closeTag, curr)) {
+        depth--;
+        if (depth === 0) break;
+        curr += closeTag.length;
+      } else {
+        curr++;
+      }
+    }
+
+    if (depth === 0) {
+      const fullElement = text.slice(idx, curr + closeTag.length);
+      const valMatch = fullElement.match(/class=["'][^"']*flag-matched-value[^"']*["'][^>]*>(.*?)<\/span>/i);
+      let replacement = "";
+      if (valMatch) {
+        replacement = valMatch[1].trim();
+      } else {
+        const innerContent = text.slice(tagEnd + 1, curr);
+        const clean = innerContent.replace(/<[^>]+>/g, "").replace(/^\[(?:⚠️|SENSITIVE)[^:]*:\s*|\s*\]$/g, "");
+        replacement = clean.trim();
+      }
+      text = text.slice(0, idx) + replacement + text.slice(curr + closeTag.length);
+      lower = text.toLowerCase();
+      startPos = idx + replacement.length;
+    } else {
+      startPos = tagEnd + 1;
+    }
+  }
+  return text;
+}
+
+export function stripPreviewWrappers(text: string): string {
+  if (!text) return "";
+  let s = text;
+  // 1. Un-nest double redactions: [SENSITIVE: [REDACTED: ...]] -> [REDACTED: ...]
+  s = s.replace(/\[SENSITIVE:\s*\[REDACTED(?::\s*([^\]]+))?\]\]/gi, (_m, inner) => inner ? `[REDACTED: ${inner}]` : "[REDACTED]");
+  s = s.replace(/\[REDACTED:\s*\[REDACTED(?::\s*([^\]]+))?\]\]/gi, (_m, inner) => inner ? `[REDACTED: ${inner}]` : "[REDACTED]");
+  s = s.replace(/\[SENSITIVE:\s*\[RESTRICTED\]\]/gi, "[RESTRICTED]");
+
+  // 2. Strip review UI badges/spans/marks
+  s = stripElementByClass(s, "span", "sensitive-flag-badge");
+  s = stripElementByClass(s, "mark", "sensitive-flag-badge");
+  s = s.replace(/<span\s+[^>]*style=["'][^"']*color:\s*red[^"']*["'][^>]*>(.*?)<\/span>/gis, "$1");
+  s = s.replace(/<span\s+[^>]*class=["'][^"']*redacted-pill-badge[^"']*["'][^>]*>(.*?)<\/span>/gis, "$1");
+
+  // 3. Strip standalone [SENSITIVE: ...] markers
+  s = s.replace(/\[SENSITIVE:\s*\[REDACTED(?::\s*([^\]]+))?\]\]/gi, (_m, inner) => inner ? `[REDACTED: ${inner}]` : "[REDACTED]");
+  s = s.replace(/\[SENSITIVE:\s*([^\]]+)\]/gi, "$1");
+
+  // 4. Restore classification banners if accidentally touched
+  s = s.replace(
+    /((?:^|\n)\s*(?:\*{1,2})?(?:CLASSIFICATION|TLP|TRAFFIC LIGHT PROTOCOL)\s*:(?:\*{1,2})?\s*)(?:\[REDACTED(?::\s*[^\]]+)?\]|\[SENSITIVE:\s*([^\]]+)\])/gi,
+    (_match, prefix, inner) => prefix + (inner || "")
+  );
+
+  return s;
 }
 
 export async function generateDeliverable(
@@ -576,8 +735,12 @@ export async function generateDeliverable(
   blueprint?: string,
   isOrganisation: boolean = false,
   groundingMd?: string,
-  groundingJson?: any
+  groundingJson?: any,
+  sessionId?: string,
+  email?: string,
+  userId?: string
 ): Promise<string> {
+  const cleanBlueprint = blueprint ? stripPreviewWrappers(blueprint) : "";
   // Attempt real backend deliverable generation
   try {
     const controller = new AbortController();
@@ -588,12 +751,16 @@ export async function generateDeliverable(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         outputType: id,
-        previewDraft: blueprint || "",
+        previewDraft: cleanBlueprint,
         sourceText,
         groundingMd: groundingMd || sourceText,
         groundingJson,
         params,
         isOrganisation,
+        session_id: sessionId,
+        sessionId,
+        email,
+        userId,
       }),
       signal: controller.signal,
     });
@@ -603,7 +770,7 @@ export async function generateDeliverable(
       const data = await res.json();
       const content = data.final_content || data.content;
       if (content) {
-        return content;
+        return stripPreviewWrappers(content);
       }
     } else {
       const errText = await res.text().catch(() => "");
@@ -624,17 +791,23 @@ export async function generateDeliverable(
   const cleanAll = combinedText.replace(/<[^>]+>/g, "").replace(/\[\^[^\]]+\]/g, "");
 
   const cveMatch = cleanAll.match(/\bCVE-\d{4}-\d{4,7}\b/);
-  const cve = cveMatch ? cveMatch[0] : "CVE-2026-41822";
+  const cve = cveMatch ? cveMatch[0] : "Identified Vulnerability";
 
   const ipMatch = cleanAll.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
-  const ip = ipMatch ? ipMatch[0] : "10.14.2.1";
+  const ip = ipMatch ? ipMatch[0] : "192.168.1.100";
+
+  const KNOWN_ACTORS = [
+    "Conti", "REvil", "LockBit", "BlackCat", "ALPHV", "Lazarus", "Volt Typhoon",
+    "Sophos Rapid Response", "Sophos", "IBM X-Force", "CERT-In", "NIST", "CISA"
+  ];
+  const matchedKnown = KNOWN_ACTORS.find((a) => cleanAll.toLowerCase().includes(a.toLowerCase()));
 
   const actorMatch = cleanAll.match(/['"“]([A-Z][A-Za-z0-9_\s]{3,30}(?:Collective|Group|APT\w*|Team|Bear|Panda))['"”]/) ||
                      cleanAll.match(/\b([A-Z][A-Za-z0-9_\s]{3,25}(?:Collective|Group|APT\d+))\b/);
-  const actor = actorMatch ? actorMatch[1].trim() : "ShadowGate Collective";
+  const actor = actorMatch ? actorMatch[1].trim() : (matchedKnown || "Identified Threat Actor");
 
   const sysMatch = cleanAll.match(/\b([A-Z][A-Za-z0-9]+(?:Shield|Gate|Core|Guard|Auth|Switch|OS|Server)\s*(?:middleware|platform|v\d+[\.\w]*|controller)?)\b/);
-  const system = sysMatch ? sysMatch[1].trim() : "BankShield middleware";
+  const system = sysMatch ? sysMatch[1].trim() : "Target Infrastructure";
 
   const facts: string[] = [];
   if (blueprint) {
@@ -666,11 +839,11 @@ export async function generateDeliverable(
 
   switch (id) {
     case "linkedin_post":
-      return `🚨 If your organization runs critical infrastructure or banking middleware, you need to read this immediately.
+      return `🚨 If your organization operates enterprise infrastructure, you need to read this immediately.
 
 A major threat intelligence development has just been confirmed:
 
-The threat actor group designated "${actor}" has actively exploited ${cve} (CVSS 9.1), targeting enterprise infrastructure. The campaign has compromised over 3,200 controllers across 14 regional networks.
+The threat actor designated "${actor}" has actively exploited ${cve} (CVSS 9.1), targeting enterprise infrastructure. The campaign has compromised critical controllers across operational networks.
 
 Here is what every engineering leader and CISO needs to know right now:
 
@@ -680,18 +853,18 @@ Here is what every engineering leader and CISO needs to know right now:
 🔹 Access Risk: ${f4}
 
 What SecOps and IT infrastructure teams should execute immediately:
-1. Immediately audit and isolate all external endpoints running affected middleware versions.
+1. Immediately audit and isolate all external endpoints running affected service versions.
 2. Force credential revocation and zero-trust authentication across all controller management consoles.
 3. Ingest confirmed threat actor indicators into your SIEM and EDR rule sets.
 
-To security leaders and enterprise architects: What is your current protocol for third-party middleware patch verification across remote regional assets?
+To security leaders and enterprise architects: What is your current protocol for third-party patch verification across remote assets?
 
 Let's discuss actionable mitigation strategies in the comments below.
 
 #CyberSecurity #ThreatIntel #CISO #SecOps #InfoSec #DevSecOps`;
 
     case "social_thread":
-      return `1/5 🚨 BREAKING THREAT ALERT: Coordinated enterprise exploit detected targeting critical banking infrastructure.
+      return `1/5 🚨 BREAKING THREAT ALERT: Coordinated enterprise exploit detected targeting critical infrastructure.
 
 The "${actor}" is actively exploiting ${cve} (CVSS 9.1) across widely-deployed ${system} controllers.
 
@@ -737,7 +910,7 @@ Retweet the first tweet to warn your peers 🔁 Bookmark this thread for your Se
 ---
 
 ## 1. Executive Threat Summary
-An active, coordinated cyber intrusion campaign has been detected targeting enterprise banking infrastructure. The adversary group designated "${actor}" has actively exploited ${cve} (CVSS 9.1) in the ${system} platform, impacting critical controller nodes across regional networks. Immediate mitigation and containment are required.
+An active, coordinated cyber intrusion campaign has been detected targeting enterprise infrastructure. The adversary group designated "${actor}" has actively exploited ${cve} (CVSS 9.1) in the ${system} platform, impacting critical controller nodes across regional networks. Immediate mitigation and containment are required.
 
 ## 2. Technical Vulnerability Analysis & Exploit Chain
 - **Vulnerability Identifier:** ${cve} (CVSS v3.1 Score: 9.1 - Critical)
@@ -865,4 +1038,41 @@ export async function regenerateDeliverable(
 ): Promise<string> {
   const base = await generateDeliverable(id, sourceText, params);
   return `${base}\n\n---\n*Updated with refinement directive: "${refinement}"*`;
+}
+
+export async function autosavePreviewDraft(
+  sessionId: string,
+  outputType: string,
+  editedContent: string
+): Promise<boolean> {
+  if (!sessionId) return false;
+  try {
+    const res = await callApi(`/api/previews/${sessionId}/autosave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        output_type: outputType,
+        edited_content: editedContent,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchUserHistory(email?: string, userId?: string): Promise<Generation[]> {
+  try {
+    const query = email ? `email=${encodeURIComponent(email)}` : userId ? `user_id=${encodeURIComponent(userId)}` : "";
+    const res = await callApi(`/api/history${query ? `?${query}` : ""}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        return data as Generation[];
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to fetch user history from backend:", err);
+  }
+  return [];
 }
