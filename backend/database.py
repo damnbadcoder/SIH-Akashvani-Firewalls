@@ -61,8 +61,24 @@ def init_db():
                     if "parameters_json" not in existing_cols:
                         conn.execute(text("ALTER TABLE sessions ADD COLUMN parameters_json TEXT;"))
                     conn.commit()
+
+                # Check for newly added columns in deliverables table (T9)
+                deliv_res = conn.execute(text("PRAGMA table_info(deliverables);"))
+                deliv_cols = [r[1] for r in deliv_res.fetchall()]
+                if deliv_cols:
+                    if "signature" not in deliv_cols:
+                        conn.execute(text("ALTER TABLE deliverables ADD COLUMN signature TEXT;"))
+                    if "signing_key_id" not in deliv_cols:
+                        conn.execute(text("ALTER TABLE deliverables ADD COLUMN signing_key_id VARCHAR(64);"))
+                    if "content_hash" not in deliv_cols:
+                        conn.execute(text("ALTER TABLE deliverables ADD COLUMN content_hash VARCHAR(64);"))
+                    if "signature_metadata_json" not in deliv_cols:
+                        conn.execute(text("ALTER TABLE deliverables ADD COLUMN signature_metadata_json TEXT;"))
+                    if "revision" not in deliv_cols:
+                        conn.execute(text("ALTER TABLE deliverables ADD COLUMN revision INTEGER DEFAULT 1;"))
+                    conn.commit()
     except Exception as e:
-        logger.warning(f"Session column auto-migration warning: {e}")
+        logger.warning(f"Database column auto-migration warning: {e}")
     logger.info("Database schemas initialized.")
 
 def check_db_connection() -> bool:

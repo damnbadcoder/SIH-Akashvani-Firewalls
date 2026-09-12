@@ -45,10 +45,24 @@ def get_chat_history(
         # Construct frontend-compatible generation object
         deliverables = []
         for d in s.deliverables:
+            env = None
+            if d.signature_metadata_json:
+                try:
+                    env = json.loads(d.signature_metadata_json)
+                except Exception:
+                    env = None
             deliverables.append({
                 "outputType": d.output_type,
                 "content": d.content,
                 "retries": 0,
+                "deliverable_id": d.id,
+                "signature": d.signature,
+                "signing_key_id": d.signing_key_id,
+                "content_hash": d.content_hash,
+                "signature_envelope": env,
+                "qr_data_url": env.get("qr_data_url") if isinstance(env, dict) else None,
+                "verification_url": env.get("verification_url") if isinstance(env, dict) else None,
+                "revision": d.revision or 1,
             })
 
         previews_by_type = {}

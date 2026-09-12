@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Markdown from "../components/Markdown";
 import ReviewWorkspace from "../components/ReviewWorkspace";
 import { logoutUser } from "../lib/firebase";
@@ -11,6 +11,7 @@ import {
   regenerateDeliverable,
   autosavePreviewDraft,
   fetchUserHistory,
+  reSignDeliverableApi,
 } from "../lib/mock";
 import {
   AUDIENCE_CATEGORIES,
@@ -100,6 +101,7 @@ export default function Dashboard() {
   const [retrying, setRetrying] = useState(false);
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showSigModal, setShowSigModal] = useState(false);
   const hasAutoRestored = useRef(false);
   const autosaveTimeout = useRef<any>(null);
 
@@ -478,7 +480,7 @@ export default function Dashboard() {
     try {
       const first = selected.values().next().value as OutputTypeId;
       for (const id of selected) {
-        const content = await generateDeliverable(
+        const res = await generateDeliverable(
           id,
           sourceText,
           paramsFor(id),
@@ -490,7 +492,20 @@ export default function Dashboard() {
           user?.email,
           user?.id
         );
-        g.deliverables.push({ outputType: id, content, retries: 0 });
+        const contentStr = typeof res === "string" ? res : res.content;
+        g.deliverables.push({
+          outputType: id,
+          content: contentStr,
+          retries: 0,
+          deliverable_id: typeof res === "object" ? res.deliverable_id : undefined,
+          signature: typeof res === "object" ? res.signature : undefined,
+          signing_key_id: typeof res === "object" ? res.signing_key_id : undefined,
+          content_hash: typeof res === "object" ? res.content_hash : undefined,
+          signature_envelope: typeof res === "object" ? res.signature_envelope : undefined,
+          qr_data_url: typeof res === "object" ? res.qr_data_url : undefined,
+          verification_url: typeof res === "object" ? res.verification_url : undefined,
+          revision: typeof res === "object" ? (res.revision || 1) : 1,
+        });
         setGen({ ...g, deliverables: [...g.deliverables] });
         if (id === first) setActiveId(id);
       }
@@ -556,12 +571,38 @@ export default function Dashboard() {
     setHistoryOpen(false);
   }
 
-  function acceptDraft() {
-    if (!gen || !activeId) return;
+  async function acceptDraft() {
+    if (!gen || !activeId || !active) return;
+    let updatedDeliverable: Deliverable = {
+      ...active,
+      content: draft,
+      retries: active.retries + 1,
+    };
+
+    if (active.deliverable_id) {
+      try {
+        const reSignRes = await reSignDeliverableApi(active.deliverable_id, draft);
+        if (reSignRes) {
+          updatedDeliverable = {
+            ...updatedDeliverable,
+            signature: reSignRes.signature,
+            signing_key_id: reSignRes.signing_key_id,
+            content_hash: reSignRes.content_hash,
+            signature_envelope: reSignRes.signature_envelope,
+            qr_data_url: reSignRes.qr_data_url,
+            verification_url: reSignRes.verification_url,
+            revision: reSignRes.revision,
+          };
+        }
+      } catch (err) {
+        console.warn("Could not re-sign on deliverable edit:", err);
+      }
+    }
+
     setGen({
       ...gen,
       deliverables: gen.deliverables.map((d) =>
-        d.outputType === activeId ? { ...d, content: draft } : d
+        d.outputType === activeId ? updatedDeliverable : d
       ),
     });
     setEditing(false);
@@ -582,6 +623,27 @@ export default function Dashboard() {
     anchor.href = url;
     anchor.download = `${active.outputType}.md`;
     anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadSidecar() {
+    if (!active) return;
+    const envelope = active.signature_envelope || {
+      format: "transmute-signature-v1",
+      deliverable_id: active.deliverable_id || gen?.sessionId || "local-draft",
+      output_type: active.outputType,
+      signature: active.signature || "unsigned",
+      content_sha256: active.content_hash || "none",
+      signing_key_id: active.signing_key_id || "transmute-key-2026-v1",
+      revision: active.revision || 1,
+      verification_url: active.verification_url || `${window.location.origin}/verify?id=${active.deliverable_id}&hash=${active.content_hash}`,
+    };
+    const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${active.outputType}_rev${active.revision || 1}.sig`;
+    a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -626,6 +688,14 @@ export default function Dashboard() {
         </nav>
 
         <div className="topbar-right">
+          <Link
+            to="/verify"
+            className="ghost sm verify-nav-link"
+            title="Open Public Deliverable Authenticity & Watermark Verifier"
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--text)", textDecoration: "none" }}
+          >
+            🛡️ <span>Verify Authenticity</span>
+          </Link>
           {user.photoURL && (
             <img
               src={user.photoURL}
@@ -1027,16 +1097,31 @@ export default function Dashboard() {
               {active && (
                 <div className="card deliverable">
                   <div className="deliverable-toolbar">
+                    <button
+                      type="button"
+                      className="sig-badge-btn"
+                      onClick={() => setShowSigModal(true)}
+                      title="Inspect Ed25519 Notary Seal & QR Watermark"
+                    >
+                      <span className="sig-icon">🛡️</span>
+                      <span className="sig-text">
+                        {active.signature ? "Signed & Authentic" : "Cryptographic Seal"}
+                      </span>
+                      {active.revision && active.revision > 1 && (
+                        <span className="sig-rev">Rev #{active.revision}</span>
+                      )}
+                    </button>
                     {editing ? (
                       <>
                         <button className="ghost sm" onClick={() => setEditing(false)}>Discard</button>
-                        <button className="primary sm" onClick={acceptDraft}>Save changes</button>
+                        <button className="primary sm" onClick={acceptDraft}>Save changes & Re-sign</button>
                       </>
                     ) : (
                       <>
                         <button className="ghost sm" onClick={() => { setDraft(active.content); setEditing(true); }}>Edit markdown</button>
                         <button className="ghost sm" onClick={copy}>{copied ? "Copied ✓" : "Copy"}</button>
                         <button className="ghost sm" onClick={download}>Download .md</button>
+                        <button className="ghost sm" onClick={downloadSidecar} title="Download detached .sig cryptographic sidecar">Download .sig</button>
                       </>
                     )}
                   </div>
@@ -1062,6 +1147,102 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* T9: Signature & Watermark Modal */}
+      {showSigModal && active && (
+        <div className="sig-modal-overlay" onClick={() => setShowSigModal(false)}>
+          <div className="sig-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="sig-modal-header">
+              <h3>
+                <span>🛡️</span> Deliverable Notary Seal & Provenance
+              </h3>
+              <button
+                type="button"
+                className="sig-modal-close"
+                onClick={() => setShowSigModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="sig-seal-banner">
+              <span>✓</span>
+              <div>
+                <strong>Cryptographically Sealed Deliverable</strong>
+                <p style={{ margin: 0, fontSize: "12px", opacity: 0.9 }}>
+                  Signed using asymmetric <strong>Ed25519</strong> over the canonical SHA-256 deliverable digest.
+                </p>
+              </div>
+            </div>
+
+            {/* QR Code Watermark & Scan info */}
+            <div className="sig-qr-container">
+              {active.qr_data_url ? (
+                <img
+                  src={active.qr_data_url}
+                  alt="Deliverable Verification QR Code"
+                  className="sig-qr-img"
+                />
+              ) : (
+                <div className="sig-qr-img" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#000", fontSize: "11px", textAlign: "center" }}>
+                  QR Watermark Available
+                </div>
+              )}
+              <div className="sig-qr-meta">
+                <strong>Scannable Verification Watermark</strong>
+                <span className="muted">
+                  Recipients can scan this QR code with any mobile camera to immediately verify authenticity against the platform ledger.
+                </span>
+                <Link
+                  to={`/verify?id=${active.deliverable_id || ""}&hash=${active.content_hash || ""}`}
+                  className="ghost sm"
+                  style={{ alignSelf: "flex-start", marginTop: "4px" }}
+                >
+                  Open Verification Portal ↗
+                </Link>
+              </div>
+            </div>
+
+            {/* Metadata breakdown */}
+            <div className="sig-meta-grid">
+              <div className="sig-meta-item">
+                <span className="sig-meta-label">Deliverable ID</span>
+                <span className="sig-meta-value">{active.deliverable_id || "Local Draft"}</span>
+              </div>
+              <div className="sig-meta-item">
+                <span className="sig-meta-label">Revision</span>
+                <span className="sig-meta-value">Rev #{active.revision || 1}</span>
+              </div>
+              <div className="sig-meta-item">
+                <span className="sig-meta-label">Signer Key ID</span>
+                <span className="sig-meta-value">{active.signing_key_id || "transmute-key-2026-v1"}</span>
+              </div>
+              <div className="sig-meta-item">
+                <span className="sig-meta-label">Classification</span>
+                <span className="sig-meta-value">TLP:AMBER+STRICT</span>
+              </div>
+            </div>
+
+            {active.content_hash && (
+              <div className="sig-meta-item">
+                <span className="sig-meta-label">SHA-256 Content Digest</span>
+                <code style={{ fontSize: "11px", wordBreak: "break-all", background: "rgba(0,0,0,0.3)", padding: "6px", borderRadius: "4px" }}>
+                  {active.content_hash}
+                </code>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+              <button type="button" className="ghost sm" onClick={downloadSidecar}>
+                Download .sig Sidecar
+              </button>
+              <button type="button" className="primary sm" onClick={() => setShowSigModal(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

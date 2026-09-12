@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     STORAGE_DIR: Path = BASE_DIR / "storage"
     UPLOADS_DIR: Path = BASE_DIR / "storage" / "uploads"
     PREVIEWS_DIR: Path = BASE_DIR / "storage" / "previews"
+    KEYS_DIR: Path = BASE_DIR / "storage" / "keys"
+
+    # Deliverable Watermarking & Signing (T9)
+    SIGNING_MASTER_KEY: str = os.getenv("SIGNING_MASTER_KEY", "")
+    DEFAULT_SIGNING_ORG: str = os.getenv("DEFAULT_SIGNING_ORG", "Transmute Threat Intel CERT")
+    DEFAULT_TLP_LEVEL: str = os.getenv("DEFAULT_TLP_LEVEL", "TLP:AMBER+STRICT")
+    VERIFY_BASE_URL: str = os.getenv("VERIFY_BASE_URL", "http://localhost:5173/verify")
 
     # LLM Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -49,3 +56,4 @@ settings = Settings()
 settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 settings.PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+settings.KEYS_DIR.mkdir(parents=True, exist_ok=True)

@@ -78,3 +78,10 @@ class DeliverableResponse(BaseModel):
     readability: Optional[Dict[str, Any]] = None
     deliverable_id: Optional[str] = None
     session_id: Optional[str] = None
+    signature: Optional[str] = None
+    signing_key_id: Optional[str] = None
+    content_hash: Optional[str] = None
+    signature_envelope: Optional[Dict[str, Any]] = None
+    qr_data_url: Optional[str] = None
+    verification_url: Optional[str] = None
+    revision: Optional[int] = 1

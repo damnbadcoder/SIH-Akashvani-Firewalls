@@ -180,6 +180,14 @@ export interface Deliverable {
   outputType: OutputTypeId;
   content: string;
   retries: number;
+  deliverable_id?: string;
+  signature?: string;
+  signing_key_id?: string;
+  content_hash?: string;
+  signature_envelope?: any;
+  qr_data_url?: string;
+  verification_url?: string;
+  revision?: number;
 }
 
 export interface Generation {
