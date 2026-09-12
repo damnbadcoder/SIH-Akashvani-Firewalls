@@ -26,6 +26,7 @@ class PlatformPreview(BaseModel):
     citations_used: List[str] = Field(default_factory=list)
     sensitive_items_flagged: int = 0
     sensitive_flags: List[Any] = Field(default_factory=list)
+    readability: Optional[Dict[str, Any]] = None
 
 class GeneratePlanResponse(BaseModel):
     plan: str
@@ -71,4 +72,7 @@ class DeliverableResponse(BaseModel):
     final_content: str
     provenance: List[Dict[str, Any]] = Field(default_factory=list)
     verification: Optional[Dict[str, Any]] = None
+    relinked_citations: Optional[List[Any]] = None
+    readability: Optional[Dict[str, Any]] = None
+    deliverable_id: Optional[str] = None
     session_id: Optional[str] = None

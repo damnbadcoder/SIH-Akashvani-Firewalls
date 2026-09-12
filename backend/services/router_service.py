@@ -101,7 +101,7 @@ class PipelineRouterService:
                 if ingest_video:
                     r = ingest_video(file_path, save_outputs=False, enrich=False)
                     markdown = r.clean_markdown or ""
-                    for scene in getattr(r, "scenes", [])[:6]:
+                    for scene in getattr(r, "scenes", []):
                         citations.append({
                             "id": f"vid-scene-{getattr(scene, 'scene_id', len(citations)+1)}",
                             "kind": "file",

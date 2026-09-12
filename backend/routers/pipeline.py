@@ -256,6 +256,7 @@ async def generate_plan_endpoint(
             citations_used=p_info.get("citations_used", []),
             sensitive_items_flagged=p_info.get("sensitive_items_flagged", 0),
             sensitive_flags=p_info.get("sensitive_flags", []),
+            readability=p_info.get("readability"),
         )
 
     for fact in preview_data.get("extracted_facts", []):
@@ -317,6 +318,28 @@ async def generate_deliverable_endpoint(
         db.commit()
         db.refresh(session)
         session_id = session.id
+
+    if isinstance(metadata_json, dict) and "original_preview_draft" not in metadata_json:
+        orig_d = (
+            payload.get("original_preview_draft")
+            or payload.get("originalDraft")
+            or payload.get("preview_draft")
+            or payload.get("original_draft")
+        )
+        if not orig_d and session_id:
+            from backend.models.preview import PreviewRecord
+            prev_rec = (
+                db.query(PreviewRecord)
+                .filter(
+                    PreviewRecord.session_id == session_id,
+                    PreviewRecord.output_type == platform_key,
+                )
+                .first()
+            )
+            if prev_rec and prev_rec.original_preview_content:
+                orig_d = prev_rec.original_preview_content
+        if orig_d:
+            metadata_json["original_preview_draft"] = orig_d
 
     # -------------------------------------------------------------------------
     # PHASE 3: Core LLM Branching (Gemini)

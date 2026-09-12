@@ -15,6 +15,18 @@ except ImportError:
         return {"verified_text": draft_text, "verdicts": [], "passed": True}
 
 try:
+    from enhancements.anchor_relinker import relink_citations
+except ImportError:
+    def relink_citations(edited_text: str, original_text: str = ""):
+        return edited_text, []
+
+try:
+    from enhancements.readability_scorer import score_readability
+except ImportError:
+    def score_readability(text: str, platform_key: str = "default") -> dict:
+        return {"passed": True, "flesch_reading_ease": 60.0, "metrics": {}}
+
+try:
     from google import genai
     from google.genai import types as genai_types
 except ImportError:
@@ -76,6 +88,16 @@ def generate_final_deliverable(platform_key: str, approved_draft: str, content_m
     seen_gr = set()
     groq_models_to_try = [m for m in candidate_groq_models if m and not (m in seen_gr or seen_gr.add(m))]
 
+    # Re-link citations if user edited the draft
+    original_preview_draft = (
+        metadata_json.get("original_preview_draft")
+        or metadata_json.get("preview_draft")
+        or parameters.get("original_preview_draft")
+        or parameters.get("preview_draft")
+        or ""
+    )
+    safe_draft, relink_logs = relink_citations(approved_draft, original_preview_draft)
+
     # 1. Extract category-specific system instructions
     system_instruction = get_prompt_for_category(platform_key)
     
@@ -99,7 +121,7 @@ Tailor the output explicitly to these <PARAMETERS>.
 
 <APPROVED_DRAFT>
 (Use this as the structural skeleton and thematic direction. Elevate the prose to match the requested platform and tone.)
-{approved_draft}
+{safe_draft}
 </APPROVED_DRAFT>
 
 OUTPUT INSTRUCTIONS:
@@ -202,13 +224,18 @@ Return a valid JSON object exactly matching this schema:
                 "Please verify model availability and network connection."
             )
         print("[final_post_pipeline] ⚠️ No API keys configured. Using get_mock_final_deliverable() fallback.")
-        mock_res = get_mock_final_deliverable(platform_key, approved_draft)
+        mock_res = get_mock_final_deliverable(platform_key, safe_draft)
         verification_report = verify_citations(mock_res.final_content, content_md)
         mock_res.verification = verification_report
+        mock_res.relinked_citations = [
+            m.model_dump() if hasattr(m, "model_dump") else m for m in relink_logs
+        ]
+        mock_res.readability = score_readability(mock_res.final_content, platform_key)
         return mock_res
 
-    final_content = data.get("final_content", approved_draft)
+    final_content = data.get("final_content", safe_draft)
     verification_report = verify_citations(final_content, content_md)
+    readability_report = score_readability(final_content, platform_key)
 
     verdicts_by_marker = {
         v.get("citation_marker"): v for v in verification_report.get("verdicts", [])
@@ -233,4 +260,8 @@ Return a valid JSON object exactly matching this schema:
         final_content=final_content,
         provenance=provenance_list,
         verification=verification_report,
+        relinked_citations=[
+            m.model_dump() if hasattr(m, "model_dump") else m for m in relink_logs
+        ],
+        readability=readability_report,
     )

@@ -34,6 +34,15 @@ class DeliverableService:
         final_content = res.final_content
         provenance = [p.model_dump() for p in res.provenance]
         verification = getattr(res, "verification", None)
+        relinked_citations = getattr(res, "relinked_citations", None)
+        readability = getattr(res, "readability", None)
+
+        if not readability:
+            try:
+                from enhancements.readability_scorer import score_readability
+                readability = score_readability(final_content, platform_key)
+            except Exception:
+                readability = None
 
         # 1. Persist to PostgreSQL DeliverableRecord
         deliverable_record = DeliverableRecord(
@@ -56,6 +65,8 @@ class DeliverableService:
                 "output_type": platform_key,
                 "provenance": provenance,
                 "verification": verification,
+                "relinked_citations": relinked_citations,
+                "readability": readability,
             }),
         )
         db.add(chat_msg)
@@ -73,6 +84,8 @@ class DeliverableService:
             "final_content": final_content,
             "provenance": provenance,
             "verification": verification,
+            "relinked_citations": relinked_citations,
+            "readability": readability,
             "deliverable_id": deliverable_record.id,
             "session_id": session_id,
         }

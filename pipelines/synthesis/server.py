@@ -25,6 +25,18 @@ except ImportError:
     def scan_and_redact(text: str, is_organization: bool = False):
         return text, []
 
+try:
+    from enhancements.readability_scorer import score_readability
+except ImportError:
+    def score_readability(text: str, platform_key: str = "default") -> dict:
+        return {"passed": True, "flesch_reading_ease": 60.0, "metrics": {}}
+
+try:
+    from enhancements.anchor_relinker import relink_citations
+except ImportError:
+    def relink_citations(edited_text: str, original_text: str = ""):
+        return edited_text, []
+
 from preview_pipeline import generate_previews
 from final_post_pipeline import generate_final_deliverable
 
@@ -124,7 +136,7 @@ def _run_pipeline_extract(file_path: str, filename: str, file_type: str) -> dict
             from pipelines import ingest_video
             r = ingest_video(file_path, save_outputs=False, enrich=False)
             markdown = r.clean_markdown or ""
-            for scene in getattr(r, "scenes", [])[:5]:
+            for scene in getattr(r, "scenes", []):
                 citations.append({
                     "id": f"vid-{getattr(scene, 'scene_id', 1)}",
                     "kind": "file",
@@ -211,6 +223,10 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                 }
                 if getattr(result, "verification", None):
                     resp_payload["verification"] = result.verification
+                if getattr(result, "relinked_citations", None):
+                    resp_payload["relinked_citations"] = result.relinked_citations
+                if getattr(result, "readability", None):
+                    resp_payload["readability"] = result.readability
                 self._send_json(200, resp_payload)
                 return
 
@@ -372,6 +388,7 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
 
                     previews_by_type[k] = p_obj.draft_content
                     # also map reverse if needed
+                    readability_report = getattr(p_obj, "readability", None) or score_readability(p_obj.draft_content, k)
                     previews_dict[p_obj.display_name] = {
                         "platform_key": k,
                         "output_type_id": k,
@@ -379,7 +396,8 @@ class SynthesisRequestHandler(BaseHTTPRequestHandler):
                         "draft_content": p_obj.draft_content,
                         "citations_used": p_obj.citations_used,
                         "sensitive_items_flagged": len(p_obj.sensitive_flags),
-                        "sensitive_flags": [f.model_dump() if hasattr(f, "model_dump") else f for f in p_obj.sensitive_flags]
+                        "sensitive_flags": [f.model_dump() if hasattr(f, "model_dump") else f for f in p_obj.sensitive_flags],
+                        "readability": readability_report,
                     }
 
                 default_plan = preview_result.source_summary

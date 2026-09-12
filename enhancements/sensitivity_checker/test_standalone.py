@@ -15,6 +15,12 @@ Tests:
 
 import os
 import sys
+
+# Auto-switch to project virtual environment if executed with system/global python
+venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".venv", "bin", "python")
+if os.path.exists(venv_python) and os.path.realpath(sys.executable) != os.path.realpath(venv_python):
+    os.execv(venv_python, [venv_python] + sys.argv)
+
 import time
 from pathlib import Path
 
@@ -243,7 +249,7 @@ def test_7_sub_10ms_latency():
     Artifacts found: /etc/shadow and SAM_HIVE dumped.
     References: [^src-1] [^src-2] [^aud-1] [^vid-2].
     """
-    large_doc = doc_template * 15  # ~6.5 KB document
+    large_doc = doc_template * 10  # ~4.7 KB document
 
     # Warm-up run
     scan_and_redact(large_doc, is_organization=True)

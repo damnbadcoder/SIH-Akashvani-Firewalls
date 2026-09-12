@@ -22,6 +22,12 @@ except ImportError:
     def scan_and_redact(text: str, is_organization: bool = False):
         return text, []
 
+try:
+    from enhancements.readability_scorer import score_readability
+except ImportError:
+    def score_readability(text: str, platform_key: str = "default") -> dict:
+        return {"passed": True, "flesch_reading_ease": 60.0, "metrics": {}}
+
 MOCK_STRUCTURED = {
     OutputType.LINKEDIN_POST: LinkedInPreviewContent(
         hook="🚨 If your org runs BankShield middleware, you need to read this immediately.",
@@ -248,7 +254,8 @@ def get_mock_previews(content_md: str, selected_outputs: List[str], is_organizat
             draft_content=draft_content,
             structured_content=structured,
             citations_used=citations,
-            sensitive_flags=flags
+            sensitive_flags=flags,
+            readability=score_readability(draft_content, platform),
         )
         
     if is_auto:

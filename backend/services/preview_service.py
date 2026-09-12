@@ -14,6 +14,18 @@ except ImportError:
     def scan_and_redact(text: str, is_organization: bool = False):
         return text, []
 
+try:
+    from enhancements.readability_scorer import score_readability
+except ImportError:
+    def score_readability(text: str, platform_key: str = "default") -> dict:
+        return {"passed": True, "flesch_reading_ease": 60.0, "metrics": {}}
+
+try:
+    from enhancements.anchor_relinker import relink_citations
+except ImportError:
+    def relink_citations(edited_text: str, original_text: str = ""):
+        return edited_text, []
+
 class PreviewService:
     @staticmethod
     def generate_initial_previews(
@@ -49,6 +61,8 @@ class PreviewService:
                 p_obj.draft_content = content
                 p_obj.sensitive_flags = flags
 
+            readability_report = score_readability(content, key)
+
             previews_by_type[key] = content
             previews_dict[p_obj.display_name] = {
                 "platform_key": key,
@@ -58,6 +72,7 @@ class PreviewService:
                 "citations_used": p_obj.citations_used,
                 "sensitive_items_flagged": len(flags),
                 "sensitive_flags": [f.model_dump() if hasattr(f, "model_dump") else f for f in flags],
+                "readability": readability_report,
             }
 
             # Save original Preview.md to disk
@@ -129,6 +144,15 @@ class PreviewService:
         )
 
         new_version = (record.version + 1) if record else 1
+
+        if record and record.original_preview_content:
+            try:
+                relinked_content, _ = relink_citations(edited_content, record.original_preview_content)
+                if relinked_content:
+                    edited_content = relinked_content
+            except Exception:
+                pass
+
         flags = []
         if is_organisation:
             edited_content, flags = scan_and_redact(edited_content, is_organization=True)

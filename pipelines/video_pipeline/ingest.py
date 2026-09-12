@@ -303,7 +303,7 @@ class VideoIngestionPipeline(BasePipeline):
                 business_impact_and_risk="Risk of lateral movement and operational downtime."
             ),
             technical_root_cause=f"Exploitation of vulnerabilities demonstrated in video session.",
-            timeline_of_events=[f"Scene {s.scene_id} [{s.timestamp_display}]: {s.visual.visual_narrative}" for s in context.scenes[:5]],
+            timeline_of_events=[f"Scene {s.scene_id} [{s.timestamp_display}]: {s.visual.visual_narrative}" for s in context.scenes],
             locked_numerical_facts=[f"Video duration: {context.metadata.duration_seconds} seconds", f"Detected {len(context.scenes)} distinct visual scenes"],
             actionable_mitigations=["Deploy vendor security updates", "Monitor perimeter logs for identified C2 IPs"],
             indicators_of_compromise=context.iocs,

@@ -372,6 +372,7 @@ class PlatformPreview(BaseModel):
     structured_content: Optional[PlatformPreviewContent] = None
     citations_used: List[str] = Field(default_factory=list)
     sensitive_flags: List[Union[SensitiveDataFlag, Any]] = Field(default_factory=list)
+    readability: Optional[Dict[str, Any]] = None
 
 
 class MultiPreviewResult(BaseModel):

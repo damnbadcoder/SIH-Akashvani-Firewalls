@@ -15,6 +15,18 @@ load_dotenv()
 from pipelines.video_pipeline.schema import AudioSegment
 
 try:
+    from faster_whisper import WhisperModel
+    FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    FASTER_WHISPER_AVAILABLE = False
+
+try:
+    import whisper
+    OPENAI_WHISPER_AVAILABLE = True
+except ImportError:
+    OPENAI_WHISPER_AVAILABLE = False
+
+try:
     from groq import Groq
     GROQ_AVAILABLE = True
 except ImportError:
@@ -27,6 +39,7 @@ class VideoAudioExtractor:
     def __init__(self, groq_api_key: Optional[str] = None):
         self.api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self.groq_client = Groq(api_key=self.api_key) if (GROQ_AVAILABLE and self.api_key) else None
+        self._whisper_model = None
 
     def extract_audio(self, video_path: str, output_audio_path: Optional[str] = None) -> Optional[str]:
         """
@@ -74,7 +87,9 @@ class VideoAudioExtractor:
 
     def transcribe(self, audio_path: str) -> Tuple[str, List[AudioSegment]]:
         """
-        Transcribes audio using Groq Whisper API (whisper-large-v3) with timestamped segments.
+        Transcribes audio using Whisper / faster-whisper or Groq Whisper API (whisper-large-v3) with timestamped segments.
+        Applies loop prevention parameters:
+        condition_on_previous_text=False, temperature fallback, compression_ratio_threshold=2.4, no_speech_threshold=0.6.
 
         Args:
             audio_path: Path to WAV/MP3 audio file.
@@ -85,37 +100,97 @@ class VideoAudioExtractor:
         if not audio_path or not os.path.exists(audio_path):
             return "", []
 
-        if not self.groq_client:
-            print("[!] Note: Groq Whisper client not initialized (missing API key or offline).", flush=True)
-            return "", []
-
-        try:
-            with open(audio_path, "rb") as f:
-                transcription = self.groq_client.audio.transcriptions.create(
-                    file=(os.path.basename(audio_path), f.read()),
-                    model="whisper-large-v3",
-                    response_format="verbose_json",
-                    temperature=0.0
+        # 1. Preferred: faster-whisper (offline, fast, loop-safe)
+        if FASTER_WHISPER_AVAILABLE:
+            try:
+                if self._whisper_model is None:
+                    self._whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+                raw_segments, info = self._whisper_model.transcribe(
+                    audio_path,
+                    condition_on_previous_text=False,
+                    temperature=[0.0, 0.2, 0.4, 0.6, 0.8],
+                    compression_ratio_threshold=2.4,
+                    no_speech_threshold=0.6,
                 )
+                segments: List[AudioSegment] = []
+                text_parts: List[str] = []
+                for idx, seg in enumerate(raw_segments, start=1):
+                    txt = seg.text.strip()
+                    if txt:
+                        text_parts.append(txt)
+                        segments.append(AudioSegment(
+                            segment_id=idx,
+                            start_seconds=round(float(seg.start), 2),
+                            end_seconds=round(float(seg.end), 2),
+                            text=txt
+                        ))
+                full_text = " ".join(text_parts)
+                if segments:
+                    return full_text, segments
+            except Exception as e:
+                print(f"[!] Warning: faster-whisper transcription error ({e}), trying fallback...", flush=True)
 
-            full_text = transcription.text if hasattr(transcription, "text") else ""
-            segments: List[AudioSegment] = []
+        # 2. Alternative local: openai-whisper
+        if OPENAI_WHISPER_AVAILABLE:
+            try:
+                if self._whisper_model is None:
+                    self._whisper_model = whisper.load_model("base")
+                result = self._whisper_model.transcribe(
+                    audio_path,
+                    condition_on_previous_text=False,
+                    temperature=(0.0, 0.2, 0.4, 0.6, 0.8),
+                    compression_ratio_threshold=2.4,
+                    no_speech_threshold=0.6,
+                )
+                segments: List[AudioSegment] = []
+                raw_segments = result.get("segments", [])
+                for idx, seg in enumerate(raw_segments, start=1):
+                    txt = seg.get("text", "").strip()
+                    if txt:
+                        segments.append(AudioSegment(
+                            segment_id=idx,
+                            start_seconds=round(float(seg.get("start", 0.0)), 2),
+                            end_seconds=round(float(seg.get("end", 0.0)), 2),
+                            text=txt
+                        ))
+                full_text = result.get("text", "").strip()
+                if segments:
+                    return full_text, segments
+            except Exception as e:
+                print(f"[!] Warning: whisper transcription error ({e}), trying fallback...", flush=True)
 
-            raw_segments = getattr(transcription, "segments", [])
-            for idx, seg in enumerate(raw_segments, start=1):
-                start = float(seg.get("start", 0.0) if isinstance(seg, dict) else getattr(seg, "start", 0.0))
-                end = float(seg.get("end", 0.0) if isinstance(seg, dict) else getattr(seg, "end", 0.0))
-                txt = (seg.get("text", "") if isinstance(seg, dict) else getattr(seg, "text", "")).strip()
+        # 3. Cloud fallback: Groq Whisper API
+        if self.groq_client:
+            try:
+                with open(audio_path, "rb") as f:
+                    transcription = self.groq_client.audio.transcriptions.create(
+                        file=(os.path.basename(audio_path), f.read()),
+                        model="whisper-large-v3",
+                        response_format="verbose_json",
+                        temperature=0.2,
+                    )
 
-                if txt:
-                    segments.append(AudioSegment(
-                        segment_id=idx,
-                        start_seconds=round(start, 2),
-                        end_seconds=round(end, 2),
-                        text=txt
-                    ))
+                full_text = transcription.text if hasattr(transcription, "text") else ""
+                segments: List[AudioSegment] = []
 
-            return full_text, segments
-        except Exception as err:
-            print(f"[!] Warning: Whisper transcription encountered error: {err}", flush=True)
-            return "", []
+                raw_segments = getattr(transcription, "segments", [])
+                for idx, seg in enumerate(raw_segments, start=1):
+                    start = float(seg.get("start", 0.0) if isinstance(seg, dict) else getattr(seg, "start", 0.0))
+                    end = float(seg.get("end", 0.0) if isinstance(seg, dict) else getattr(seg, "end", 0.0))
+                    txt = (seg.get("text", "") if isinstance(seg, dict) else getattr(seg, "text", "")).strip()
+
+                    if txt:
+                        segments.append(AudioSegment(
+                            segment_id=idx,
+                            start_seconds=round(start, 2),
+                            end_seconds=round(end, 2),
+                            text=txt
+                        ))
+
+                return full_text, segments
+            except Exception as err:
+                print(f"[!] Warning: Groq Whisper transcription encountered error: {err}", flush=True)
+                return "", []
+
+        print("[!] Note: No speech-to-text engine available (faster-whisper, whisper, or Groq API key).", flush=True)
+        return "", []

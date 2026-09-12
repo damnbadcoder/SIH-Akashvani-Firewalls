@@ -26,6 +26,12 @@ try:
 except ImportError:
     def scan_and_redact(text: str, is_organization: bool = False):
         return text, []
+
+try:
+    from enhancements.readability_scorer import score_readability
+except ImportError:
+    def score_readability(text: str, platform_key: str = "default") -> dict:
+        return {"passed": True, "flesch_reading_ease": 60.0, "metrics": {}}
 from .mock import get_mock_previews
 from .renderers import RENDERERS
 
@@ -372,6 +378,7 @@ def _generate_single_preview_llm(
         structured_content=None,
         citations_used=citations_used,
         sensitive_flags=flags,
+        readability=score_readability(draft_text, key),
     )
 
 
@@ -518,7 +525,8 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
                 draft_content=draft_content,
                 structured_content=structured_obj,
                 citations_used=citations,
-                sensitive_flags=flags
+                sensitive_flags=flags,
+                readability=score_readability(draft_content, key.value if hasattr(key, "value") else str(key)),
             )
 
     # If any selected output was missing from structured batch response, generate with LLM individually

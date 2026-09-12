@@ -13,6 +13,18 @@ except ImportError:
     def verify_citations(draft_text: str, source_context: str) -> dict:
         return {"verified_text": draft_text, "verdicts": [], "passed": True}
 
+try:
+    from enhancements.anchor_relinker import relink_citations
+except ImportError:
+    def relink_citations(edited_text: str, original_text: str = ""):
+        return edited_text, []
+
+try:
+    from enhancements.readability_scorer import score_readability
+except ImportError:
+    def score_readability(text: str, platform_key: str = "default") -> dict:
+        return {"passed": True, "flesch_reading_ease": 60.0, "metrics": {}}
+
 
 class ConditionalRoutingService:
     """
@@ -40,8 +52,15 @@ class ConditionalRoutingService:
         Ensures strict provenance integrity.
         """
         restored_text = draft_text
-        missing_citations = []
+        if source_context:
+            try:
+                relinked, _ = relink_citations(restored_text, source_context)
+                if relinked:
+                    restored_text = relinked
+            except Exception:
+                pass
 
+        missing_citations = []
         for cit in expected_citations:
             marker = cit if cit.startswith("[^") else f"[^{cit}]"
             if marker not in restored_text:

@@ -13,4 +13,6 @@ class FinalDeliverableResult(BaseModel):
     final_content: str
     provenance: List[ProvenanceItem] = Field(default_factory=list)
     verification: Optional[Dict[str, Any]] = None
+    relinked_citations: Optional[List[Any]] = None
+    readability: Optional[Dict[str, Any]] = None
 

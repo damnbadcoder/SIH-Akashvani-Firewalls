@@ -480,7 +480,7 @@ export async function generatePlan(
   }
 
   for (const f of files) {
-    const name = f instanceof File ? f.name : String(f);
+    const name: string = typeof f === "string" ? f : ((f as any)?.name || String(f));
     citations.push({
       id: `src-${citIdx++}`,
       label: name,

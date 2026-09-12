@@ -161,7 +161,7 @@ def run_pipeline_suite():
             combined_grounding_sections.append(
                 f"# SOURCE VIDEO TRANSCRIPT & SCENE ANALYSIS: {video_path.name}\n\n{res_vid.clean_markdown}"
             )
-            for sc in res_vid.scenes[:6]:
+            for sc in res_vid.scenes:
                 all_citations.append({
                     "id": f"vid-scene-{sc.scene_id}",
                     "claim": f"[{sc.timestamp_display}] {sc.spoken_transcript[:120]}",
