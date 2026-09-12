@@ -20,11 +20,21 @@ echo " Backend:  http://localhost:8000"
 echo " Frontend: http://localhost:5173"
 echo "=================================================="
 
+# Ensure backend finds common package environment
+SNAP_PY_PACKAGES="/home/samyakjain/snap/antigravity-cli/common/local/lib/python3.12/dist-packages"
+if [ -d "$SNAP_PY_PACKAGES" ]; then
+    export PYTHONPATH="$SNAP_PY_PACKAGES:$PYTHONPATH"
+fi
+
 # Start backend
 python3 server.py &
 
 # Start frontend
 cd frontend
+if [ ! -d "node_modules/rehype-raw" ]; then
+    echo "[*] Installing missing frontend dependencies..."
+    npm install
+fi
 npm run dev &
 
 wait

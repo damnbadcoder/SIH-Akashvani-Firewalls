@@ -371,7 +371,7 @@ class PlatformPreview(BaseModel):
     # Structured content for programmatic access & final pipeline
     structured_content: Optional[PlatformPreviewContent] = None
     citations_used: List[str] = Field(default_factory=list)
-    sensitive_flags: List[SensitiveDataFlag] = Field(default_factory=list)
+    sensitive_flags: List[Union[SensitiveDataFlag, Any]] = Field(default_factory=list)
 
 
 class MultiPreviewResult(BaseModel):
