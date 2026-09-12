@@ -115,6 +115,104 @@ export function triggerFileDownload(content: string, filename: string, mimeType:
   URL.revokeObjectURL(url);
 }
 
+export function stripCitationsClient(text: string): string {
+  if (!text) return "";
+  let clean = text.replace(/<button[^>]*class=["'][^"']*citation-pill[^"']*["'][^>]*>.*?<\/button>/gis, "");
+  clean = clean.replace(/\[\^[^\]]+\]/g, "");
+  clean = clean.replace(/<\/?(?:span|div|button|p|a)[^>]*>/gi, "");
+  clean = clean.replace(/\s+([,.:;!?])/g, "$1");
+  clean = clean.replace(/[ \t]{2,}/g, " ");
+  return clean.trim();
+}
+
+export async function exportDeliverableFile(
+  content: string,
+  outputType: string,
+  format: "md" | "txt" | "pdf" | "docx"
+): Promise<void> {
+  try {
+    const res = await callApi("/api/export/single", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, output_type: outputType, format }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Export server error (${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `${outputType}.${format}`;
+    if (disposition && disposition.includes("filename=")) {
+      const match = disposition.match(/filename=["']?([^"';]+)["']?/);
+      if (match && match[1]) filename = match[1];
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.warn("Backend export failed, attempting client fallback:", err);
+    if (format === "md" || format === "txt") {
+      const clean = stripCitationsClient(content);
+      const mime = format === "md" ? "text/markdown" : "text/plain";
+      triggerFileDownload(clean, `${outputType}.${format}`, mime);
+    } else {
+      throw err;
+    }
+  }
+}
+
+export async function exportDeliverablesZip(
+  deliverables: Array<{ outputType: string; content: string }>,
+  format: "md" | "txt" | "pdf" | "docx",
+  sessionId?: string
+): Promise<void> {
+  const payload = {
+    deliverables: deliverables.map((d) => ({
+      output_type: d.outputType,
+      content: d.content,
+    })),
+    format,
+    session_id: sessionId,
+  };
+
+  const res = await callApi("/api/export/zip", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Zip export error (${res.status}): ${errText}`);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = `deliverables_${format}.zip`;
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename=["']?([^"';]+)["']?/);
+    if (match && match[1]) filename = match[1];
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
 // ─────────────────────────────────────────────
 // Local Proofchecking Engine (Fallback & Instant)
 // ─────────────────────────────────────────────

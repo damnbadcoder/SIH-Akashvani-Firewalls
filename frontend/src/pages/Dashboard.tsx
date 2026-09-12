@@ -13,6 +13,8 @@ import {
   fetchUserHistory,
   scrapeLink,
   triggerFileDownload,
+  exportDeliverableFile,
+  exportDeliverablesZip,
 } from "../lib/mock";
 import {
   AUDIENCE_CATEGORIES,
@@ -115,8 +117,27 @@ export default function Dashboard() {
   const [retrying, setRetrying] = useState(false);
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [singleDownloadOpen, setSingleDownloadOpen] = useState(false);
+  const [batchDownloadOpen, setBatchDownloadOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const singleDropdownRef = useRef<HTMLDivElement>(null);
+  const batchDropdownRef = useRef<HTMLDivElement>(null);
   const hasAutoRestored = useRef(false);
   const autosaveTimeout = useRef<any>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (singleDropdownRef.current && !singleDropdownRef.current.contains(target)) {
+        setSingleDownloadOpen(false);
+      }
+      if (batchDropdownRef.current && !batchDropdownRef.current.contains(target)) {
+        setBatchDownloadOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   function restoreBlueprintSession(item: Generation) {
     const sId = item.sessionId || item.id;
@@ -657,15 +678,36 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  function download() {
+  async function handleSingleDownload(format: "md" | "txt" | "pdf" | "docx") {
     if (!active) return;
-    const blob = new Blob([active.content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${active.outputType}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    setSingleDownloadOpen(false);
+    setExportingFormat(`single-${format}`);
+    try {
+      await exportDeliverableFile(active.content, active.outputType, format);
+    } catch (err) {
+      console.error("Single export failed:", err);
+      alert(`Failed to export as .${format}. Please try again.`);
+    } finally {
+      setExportingFormat(null);
+    }
+  }
+
+  async function handleBatchZipDownload(format: "md" | "txt" | "pdf" | "docx") {
+    if (!gen || !gen.deliverables || gen.deliverables.length === 0) return;
+    setBatchDownloadOpen(false);
+    setExportingFormat(`zip-${format}`);
+    try {
+      await exportDeliverablesZip(
+        gen.deliverables.map((d) => ({ outputType: d.outputType, content: d.content })),
+        format,
+        sessionId || undefined
+      );
+    } catch (err) {
+      console.error("Batch zip export failed:", err);
+      alert(`Failed to package deliverables as .zip (${format}). Please try again.`);
+    } finally {
+      setExportingFormat(null);
+    }
   }
 
   async function logout() {
@@ -1273,12 +1315,56 @@ export default function Dashboard() {
             <>
               <div className="section-header">
                 <h2 className="col-title">3 · Deliverables</h2>
-                <button
-                  className="ghost sm"
-                  onClick={startNewTransformation}
-                >
-                  + New transformation
-                </button>
+                <div className="deliverables-header-actions">
+                  <div className="download-dropdown-wrapper" ref={batchDropdownRef}>
+                    <button
+                      className="ghost sm download-btn batch-download-btn"
+                      onClick={() => setBatchDownloadOpen(!batchDownloadOpen)}
+                      disabled={!!exportingFormat || !gen?.deliverables?.length}
+                      title="Download all deliverables at once in a .zip archive"
+                    >
+                      {exportingFormat && exportingFormat.startsWith("zip-") ? (
+                        <span>Packaging {exportingFormat.replace("zip-", "").toUpperCase()}…</span>
+                      ) : (
+                        <>
+                          <span>📦 Download All (.zip)</span>
+                          <span className="dropdown-caret">▾</span>
+                        </>
+                      )}
+                    </button>
+                    {batchDownloadOpen && (
+                      <div className="download-dropdown-menu batch-menu">
+                        <div className="download-menu-header">Download All Deliverables as:</div>
+                        <button onClick={() => handleBatchZipDownload("md")} className="download-menu-item">
+                          <span className="format-icon">📄</span>
+                          <span className="format-title">All as Markdown</span>
+                          <span className="format-ext">.md in .zip</span>
+                        </button>
+                        <button onClick={() => handleBatchZipDownload("txt")} className="download-menu-item">
+                          <span className="format-icon">📝</span>
+                          <span className="format-title">All as Plain Text</span>
+                          <span className="format-ext">.txt in .zip</span>
+                        </button>
+                        <button onClick={() => handleBatchZipDownload("pdf")} className="download-menu-item">
+                          <span className="format-icon">📕</span>
+                          <span className="format-title">All as PDF Documents</span>
+                          <span className="format-ext">.pdf in .zip</span>
+                        </button>
+                        <button onClick={() => handleBatchZipDownload("docx")} className="download-menu-item">
+                          <span className="format-icon">📘</span>
+                          <span className="format-title">All as Word Documents</span>
+                          <span className="format-ext">.docx in .zip</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="ghost sm"
+                    onClick={startNewTransformation}
+                  >
+                    + New transformation
+                  </button>
+                </div>
               </div>
               <div className="result-meta">
                 <span>{sourceSummary(gen)}</span>
@@ -1310,7 +1396,47 @@ export default function Dashboard() {
                       <>
                         <button className="ghost sm" onClick={() => { setDraft(active.content); setEditing(true); }}>Edit markdown</button>
                         <button className="ghost sm" onClick={copy}>{copied ? "Copied ✓" : "Copy"}</button>
-                        <button className="ghost sm" onClick={download}>Download .md</button>
+                        <div className="download-dropdown-wrapper" ref={singleDropdownRef}>
+                          <button
+                            className="ghost sm download-btn"
+                            onClick={() => setSingleDownloadOpen(!singleDownloadOpen)}
+                            disabled={!!exportingFormat}
+                          >
+                            {exportingFormat && exportingFormat.startsWith("single-") ? (
+                              <span>Downloading {exportingFormat.replace("single-", "").toUpperCase()}…</span>
+                            ) : (
+                              <>
+                                <span>⬇️ Download</span>
+                                <span className="dropdown-caret">▾</span>
+                              </>
+                            )}
+                          </button>
+                          {singleDownloadOpen && (
+                            <div className="download-dropdown-menu">
+                              <div className="download-menu-header">Select Format:</div>
+                              <button onClick={() => handleSingleDownload("md")} className="download-menu-item">
+                                <span className="format-icon">📄</span>
+                                <span className="format-title">Markdown</span>
+                                <span className="format-ext">.md</span>
+                              </button>
+                              <button onClick={() => handleSingleDownload("txt")} className="download-menu-item">
+                                <span className="format-icon">📝</span>
+                                <span className="format-title">Plain Text</span>
+                                <span className="format-ext">.txt</span>
+                              </button>
+                              <button onClick={() => handleSingleDownload("pdf")} className="download-menu-item">
+                                <span className="format-icon">📕</span>
+                                <span className="format-title">PDF Document</span>
+                                <span className="format-ext">.pdf</span>
+                              </button>
+                              <button onClick={() => handleSingleDownload("docx")} className="download-menu-item">
+                                <span className="format-icon">📘</span>
+                                <span className="format-title">Word Document</span>
+                                <span className="format-ext">.docx</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>

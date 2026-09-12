@@ -18,6 +18,7 @@ from backend.routers import (
     pipeline_router,
     proofcheck_router,
     chat_router,
+    export_router,
 )
 
 logging.basicConfig(
@@ -56,6 +57,7 @@ app.include_router(auth_router)
 app.include_router(pipeline_router)
 app.include_router(proofcheck_router)
 app.include_router(chat_router)
+app.include_router(export_router)
 
 def start_server(host: str = None, port: int = None):
     import uvicorn
