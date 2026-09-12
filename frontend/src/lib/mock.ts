@@ -6,22 +6,31 @@ import type {
 } from "./types";
 import { outputTypeLabel } from "./types";
 
-const API_BASE = "http://localhost:8000";
+const BACKEND_URLS = [
+  "", // relative URL via Vite proxy
+  "http://127.0.0.1:8000",
+  "http://localhost:8000",
+];
 
 async function callApi(endpoint: string, init: RequestInit): Promise<Response> {
-  const url = endpoint.startsWith("http") ? endpoint : endpoint;
-  try {
-    const res = await fetch(url, init);
-    if (res.status !== 404 && res.status !== 502 && res.status !== 504) {
-      return res;
+  if (endpoint.startsWith("http")) {
+    return await fetch(endpoint, init);
+  }
+
+  let lastError: any = null;
+  for (const base of BACKEND_URLS) {
+    try {
+      const url = `${base}${endpoint}`;
+      const res = await fetch(url, init);
+      if (res.status !== 502 && res.status !== 504 && res.status !== 404) {
+        return res;
+      }
+    } catch (err) {
+      lastError = err;
     }
-  } catch {
-    // Relative fetch failed or network error, fallback to localhost:8000
   }
-  if (!url.startsWith("http://localhost:8000")) {
-    return await fetch(`${API_BASE}${endpoint}`, init);
-  }
-  throw new Error("Could not connect to backend server at http://localhost:8000");
+
+  throw lastError || new Error("Could not connect to backend server at http://127.0.0.1:8000");
 }
 
 function sleep(ms: number) {
@@ -449,9 +458,11 @@ export async function generatePlan(
     } else {
       const errText = await res.text().catch(() => "");
       console.error(`[!] /api/generate-plan returned error ${res.status}:`, errText);
+      throw new Error(`Backend LLM preview generation failed (${res.status}): ${errText || "Please check server logs."}`);
     }
   } catch (err: any) {
-    console.warn("[!] Backend server not reachable for /api/generate-plan:", err?.message || err);
+    console.error("[!] Backend server error for /api/generate-plan:", err?.message || err);
+    throw new Error(`Could not generate LLM preview: ${err?.message || err}. Please verify the backend server is running with valid API keys.`);
   }
 
   // Graceful Local Fallback: build separated previews deterministically
@@ -597,9 +608,11 @@ export async function generateDeliverable(
     } else {
       const errText = await res.text().catch(() => "");
       console.error(`[!] /api/generate-deliverable returned error ${res.status}:`, errText);
+      throw new Error(`Backend deliverable generation failed (${res.status}): ${errText || "Please check server logs."}`);
     }
   } catch (err: any) {
-    console.warn("[!] Backend server not reachable for /api/generate-deliverable:", err?.message || err);
+    console.error("[!] Backend server error for /api/generate-deliverable:", err?.message || err);
+    throw new Error(`Could not generate LLM deliverable: ${err?.message || err}. Please verify the backend server is running with valid API keys.`);
   }
 
   await sleep(600);

@@ -238,30 +238,169 @@ RETURN ONLY STRICT VALID JSON. NO MARKDOWN WRAPPERS. NO EXPLANATION.
 """
 
 
+def _extract_json_from_text(text: str) -> Optional[Dict[str, Any]]:
+    if not text:
+        return None
+    raw = text.strip()
+    if "<think>" in raw and "</think>" in raw:
+        raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    # Direct parse
+    try:
+        return json.loads(raw)
+    except Exception:
+        pass
+    # Strip markdown fencing ```json ... ```
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
+    if match:
+        try:
+            return json.loads(match.group(1).strip())
+        except Exception:
+            pass
+    # Extract outer JSON object {...}
+    first_brace = raw.find("{")
+    last_brace = raw.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        try:
+            return json.loads(raw[first_brace:last_brace+1])
+        except Exception:
+            pass
+    return None
+
+
+def _find_output_data(data: Dict[str, Any], key: str) -> Any:
+    if not isinstance(data, dict):
+        return None
+    if key in data:
+        return data[key]
+    norm_map = {str(k).lower().replace("_", "").replace("-", ""): v for k, v in data.items()}
+    target = key.lower().replace("_", "").replace("-", "")
+    if target in norm_map:
+        return norm_map[target]
+    for sub in ["previews", "outputs", "results", "data"]:
+        if sub in data and isinstance(data[sub], dict):
+            found = _find_output_data(data[sub], key)
+            if found is not None:
+                return found
+    aliases = {
+        "linkedin_post": ["linkedin", "linkedinpost"],
+        "social_thread": ["twitter", "x", "thread", "socialthread"],
+        "exec_summary": ["executive_summary", "executivesummary", "summary", "brief"],
+        "slide_deck": ["presentation", "slides", "slidedeck"],
+        "video_script": ["video", "script", "videoscript"],
+        "playbook": ["infographic", "runbook", "playbook_guide"],
+    }
+    for alias in aliases.get(key, []):
+        t = alias.lower().replace("_", "").replace("-", "")
+        if t in norm_map:
+            return norm_map[t]
+    return None
+
+
+def _generate_single_preview_llm(
+    key: str,
+    content_md: str,
+    parameters: Dict[str, Any],
+    is_organization: bool,
+    gemini_key: str,
+    gemini_models: List[str],
+    groq_key: str,
+    groq_models: List[str]
+) -> Optional[PlatformPreview]:
+    """Generates preview for a single output type directly via LLM if batch parsing missed it."""
+    prompt = (
+        f"You are an expert cybersecurity content strategist.\n"
+        f"Generate a publication-ready draft for: {key.upper()}.\n"
+        f"Tone & Parameters: {json.dumps(parameters)}\n\n"
+        f"SOURCE MATERIAL:\n{content_md[:4000]}\n\n"
+        f"Requirements: Ground content strictly in source material. Preserve citation tags like [^src-1]. "
+        f"Provide comprehensive, high-quality, professional markdown formatted content."
+    )
+    draft_text = ""
+    # Try Gemini
+    if gemini_key and genai:
+        try:
+            client = genai.Client(api_key=gemini_key)
+            for m in gemini_models:
+                try:
+                    resp = client.models.generate_content(model=m, contents=prompt)
+                    if resp and resp.text:
+                        draft_text = resp.text.strip()
+                        print(f"[preview_pipeline] ✅ Single preview '{key}' generated with Gemini '{m}'.")
+                        break
+                except Exception as ge:
+                    print(f"[preview_pipeline] Note: single preview '{key}' with '{m}' failed: {ge}")
+        except Exception:
+            pass
+
+    # Try Groq
+    if not draft_text and groq_key and Groq:
+        try:
+            gclient = Groq(api_key=groq_key)
+            for gm in groq_models:
+                try:
+                    chat = gclient.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model=gm,
+                        max_tokens=2000,
+                        temperature=0.2,
+                    )
+                    txt = chat.choices[0].message.content.strip()
+                    if "<think>" in txt and "</think>" in txt:
+                        txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL).strip()
+                    if txt:
+                        draft_text = txt
+                        print(f"[preview_pipeline] ✅ Single preview '{key}' generated with Groq '{gm}'.")
+                        break
+                except Exception as gre:
+                    print(f"[preview_pipeline] Note: single preview '{key}' with Groq '{gm}' failed: {gre}")
+        except Exception:
+            pass
+
+    if not draft_text:
+        return None
+
+    flags = []
+    if is_organization:
+        draft_text, flags = scan_and_redact(draft_text, is_organization=True)
+
+    citations_used = re.findall(r"\[\^[^\]]+\]", draft_text) or ["[^-src-1]"]
+    return PlatformPreview(
+        platform_key=key,
+        display_name=key.replace("_", " ").title(),
+        draft_title=f"{key.replace('_', ' ').title()} Preview",
+        draft_content=draft_text,
+        structured_content=None,
+        citations_used=citations_used,
+        sensitive_flags=flags,
+    )
+
+
 def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_outputs: List[str], parameters: Dict[str, Any], is_organization: bool = False) -> MultiPreviewResult:
-    load_dotenv()
-    gemini_key = os.environ.get("GEMINI_API_KEY")
-    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
-    groq_key = os.environ.get("GROQ_API_KEY")
-    groq_model = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
+    load_dotenv(override=True)
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    groq_model = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b").strip()
     
     prompt = build_structured_prompt(selected_outputs, parameters, content_md, metadata_json)
     data = None
 
-    if not gemini_key:
-        print("[preview_pipeline] ⚠️ GEMINI_API_KEY is not set or empty in environment.")
-
-    # Candidate Gemini models to try in sequence without 404 deprecation errors
     candidate_gemini_models = [
         gemini_model,
         "gemini-3.5-flash-lite",
-        "gemini-flash-lite-latest",
-        "gemini-3.5-flash",
         "gemini-flash-latest",
-        "gemini-2.5-flash-lite",
     ]
-    seen_models = set()
-    gemini_models_to_try = [m for m in candidate_gemini_models if m and not (m in seen_models or seen_models.add(m))]
+    seen_g = set()
+    gemini_models_to_try = [m for m in candidate_gemini_models if m and not (m in seen_g or seen_g.add(m))]
+
+    candidate_groq_models = [
+        groq_model,
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "groq/compound",
+    ]
+    seen_gr = set()
+    groq_models_to_try = [m for m in candidate_groq_models if m and not (m in seen_gr or seen_gr.add(m))]
 
     if gemini_key and genai:
         try:
@@ -279,110 +418,140 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
                         config=cfg,
                     )
                     raw = (resp.text or "").strip()
-                    if raw.startswith("```json"):
-                        raw = raw[7:]
-                    if raw.startswith("```"):
-                        raw = raw[3:]
-                    if raw.endswith("```"):
-                        raw = raw[:-3]
-                    data = json.loads(raw.strip())
-                    print(f"[preview_pipeline] ✅ Gemini generation succeeded with model '{g_model}'.")
-                    break
+                    data = _extract_json_from_text(raw)
+                    if data:
+                        print(f"[preview_pipeline] ✅ Gemini generation succeeded with model '{g_model}'.")
+                        break
+                    else:
+                        print(f"[preview_pipeline] ⚠️ Gemini returned text but could not parse JSON: {raw[:150]}...")
                 except Exception as e:
                     print(f"[preview_pipeline] ❌ Gemini preview generation failed for '{g_model}': {e}")
-                    if "404" in str(e) or "NOT_FOUND" in str(e) or "not available" in str(e).lower():
-                        continue
-                    else:
-                        traceback.print_exc()
+                    continue
         except Exception as e:
             print(f"[preview_pipeline] ❌ Failed to initialize Gemini client: {e}")
-            traceback.print_exc()
 
     if data is None and groq_key and Groq:
         try:
-            print(f"[preview_pipeline] Attempting Groq fallback with model '{groq_model}'...")
             gclient = Groq(api_key=groq_key)
-            gresp = gclient.chat.completions.create(
-                model=groq_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert cybersecurity threat intelligence analyst. You output only valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.2,
-            )
-            data = json.loads(gresp.choices[0].message.content)
-            print(f"[preview_pipeline] ✅ Groq generation succeeded with model '{groq_model}'.")
+            for g_model in groq_models_to_try:
+                try:
+                    print(f"[preview_pipeline] Attempting Groq with model '{g_model}'...")
+                    gresp = gclient.chat.completions.create(
+                        model=g_model,
+                        messages=[
+                            {"role": "system", "content": "You are an expert cybersecurity threat intelligence analyst. You output strictly valid JSON."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=3000,
+                        temperature=0.2,
+                    )
+                    raw = gresp.choices[0].message.content.strip()
+                    data = _extract_json_from_text(raw)
+                    if data:
+                        print(f"[preview_pipeline] ✅ Groq generation succeeded with model '{g_model}'.")
+                        break
+                except Exception as e:
+                    print(f"[preview_pipeline] ❌ Groq preview generation failed for '{g_model}': {e}")
+                    continue
         except Exception as e:
-            print(f"[preview_pipeline] ❌ Groq preview generation failed: {e}")
-            traceback.print_exc()
-
-    if data is None:
-        print("[preview_pipeline] ⚠️ All LLM providers failed. Using get_mock_previews() fallback.")
-        return get_mock_previews(content_md, selected_outputs, is_organization)
+            print(f"[preview_pipeline] ❌ Failed to initialize Groq client: {e}")
 
     result_previews = {}
-    extracted_facts = data.get("extracted_facts", [])
-    metadata_anchors = data.get("metadata_anchors", {})
-    
-    for key in selected_outputs:
-        if key not in data:
-            continue
-            
-        structured = data[key]
-        flags = []
-        citations = structured.get("citations_used", [])
-        
-        # Render to markdown for UI preview
-        renderer = RENDERERS.get(key)
-        if renderer:
-            draft_content = renderer(structured)
-        else:
-            draft_content = json.dumps(structured, indent=2)
-        
-        # Apply redaction if Organization mode
-        if is_organization:
-            draft_content, flags = scan_and_redact(draft_content, is_organization=True)
-        
-        # Build structured content object safely
-        structured_obj = None
-        try:
-            if key == OutputType.LINKEDIN_POST:
-                structured_obj = LinkedInPreviewContent(**structured)
-            elif key == OutputType.SOCIAL_THREAD:
-                structured_obj = SocialThreadPreviewContent(**structured)
-            elif key == OutputType.ADVISORY:
-                structured_obj = AdvisoryPreviewContent(**structured)
-            elif key == OutputType.EXEC_SUMMARY:
-                structured_obj = ExecSummaryPreviewContent(**structured)
-            elif key == OutputType.INCIDENT_REPORT:
-                structured_obj = IncidentReportPreviewContent(**structured)
-            elif key == OutputType.PRESS_RELEASE:
-                structured_obj = PressReleasePreviewContent(**structured)
-            elif key == OutputType.SLIDE_DECK:
-                structured_obj = SlideDeckPreviewContent(**structured)
-            elif key == OutputType.VIDEO_SCRIPT:
-                structured_obj = VideoScriptPreviewContent(**structured)
-            elif key == OutputType.PLAYBOOK:
-                structured_obj = PlaybookPreviewContent(**structured)
-        except Exception as e:
-            print(f"[preview_pipeline] ⚠️ Could not construct typed model for {key}: {e}")
+    extracted_facts = []
+    metadata_anchors = {}
+
+    if data:
+        extracted_facts = data.get("extracted_facts", [])
+        metadata_anchors = data.get("metadata_anchors", {})
+
+        for key in selected_outputs:
+            structured = _find_output_data(data, key)
+            if structured is None:
+                continue
+
+            flags = []
+            citations = []
+            if isinstance(structured, dict):
+                citations = structured.get("citations_used", [])
+                renderer = RENDERERS.get(key)
+                if renderer:
+                    draft_content = renderer(structured)
+                else:
+                    draft_content = json.dumps(structured, indent=2)
+            elif isinstance(structured, str):
+                draft_content = structured
+                citations = re.findall(r"\[\^[^\]]+\]", draft_content) or ["[^-src-1]"]
+            else:
+                draft_content = str(structured)
+
+            if is_organization:
+                draft_content, flags = scan_and_redact(draft_content, is_organization=True)
+
             structured_obj = None
-        
-        result_previews[key] = PlatformPreview(
-            platform_key=key,
-            display_name=key.replace("_", " ").title(),
-            draft_title=f"{key.replace('_', ' ').title()} Preview",
-            draft_content=draft_content,
-            structured_content=structured_obj,
-            citations_used=citations,
-            sensitive_flags=flags
-        )
-        
+            if isinstance(structured, dict):
+                try:
+                    if key == OutputType.LINKEDIN_POST:
+                        structured_obj = LinkedInPreviewContent(**structured)
+                    elif key == OutputType.SOCIAL_THREAD:
+                        structured_obj = SocialThreadPreviewContent(**structured)
+                    elif key == OutputType.ADVISORY:
+                        structured_obj = AdvisoryPreviewContent(**structured)
+                    elif key == OutputType.EXEC_SUMMARY:
+                        structured_obj = ExecSummaryPreviewContent(**structured)
+                    elif key == OutputType.INCIDENT_REPORT:
+                        structured_obj = IncidentReportPreviewContent(**structured)
+                    elif key == OutputType.PRESS_RELEASE:
+                        structured_obj = PressReleasePreviewContent(**structured)
+                    elif key == OutputType.SLIDE_DECK:
+                        structured_obj = SlideDeckPreviewContent(**structured)
+                    elif key == OutputType.VIDEO_SCRIPT:
+                        structured_obj = VideoScriptPreviewContent(**structured)
+                    elif key == OutputType.PLAYBOOK:
+                        structured_obj = PlaybookPreviewContent(**structured)
+                except Exception as e:
+                    structured_obj = None
+
+            result_previews[key] = PlatformPreview(
+                platform_key=key,
+                display_name=key.replace("_", " ").title(),
+                draft_title=f"{key.replace('_', ' ').title()} Preview",
+                draft_content=draft_content,
+                structured_content=structured_obj,
+                citations_used=citations,
+                sensitive_flags=flags
+            )
+
+    # If any selected output was missing from structured batch response, generate with LLM individually
+    for key in selected_outputs:
+        if key not in result_previews and (gemini_key or groq_key):
+            print(f"[preview_pipeline] Individually synthesizing missing preview '{key}' with live LLM...")
+            single_preview = _generate_single_preview_llm(
+                key=key,
+                content_md=content_md,
+                parameters=parameters,
+                is_organization=is_organization,
+                gemini_key=gemini_key,
+                gemini_models=gemini_models_to_try,
+                groq_key=groq_key,
+                groq_models=groq_models_to_try,
+            )
+            if single_preview:
+                result_previews[key] = single_preview
+
+    # If still empty (e.g. no API keys configured or all calls exhausted), fallback to mock only if no keys
+    if not result_previews:
+        if gemini_key or groq_key:
+            raise RuntimeError(
+                "Failed to generate previews using configured LLM models (Gemini / Groq). "
+                "Please verify model availability and network access."
+            )
+        print("[preview_pipeline] ⚠️ No API keys configured. Using get_mock_previews() fallback.")
+        return get_mock_previews(content_md, selected_outputs, is_organization)
+
     return MultiPreviewResult(
         is_organization=is_organization,
         previews=result_previews,
-        source_summary=data.get("source_summary", "") or "Generated from threat intelligence source material.",
+        source_summary=(data.get("source_summary", "") if data else "") or "Generated from threat intelligence source material using live LLMs.",
         extracted_facts=extracted_facts,
         metadata_anchors=metadata_anchors
     )

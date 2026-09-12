@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except ImportError:
+    pass
+
+try:
     from enhancements.sensitivity_checker import scan_and_redact
 except ImportError:
     def scan_and_redact(text: str, is_organization: bool = False):

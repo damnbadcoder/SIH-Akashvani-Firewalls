@@ -46,3 +46,10 @@ def init_db():
     import backend.models  # Ensure all models are registered with Base
     Base.metadata.create_all(bind=engine)
     logger.info("Database schemas initialized.")
+
+def check_db_connection() -> bool:
+    try:
+        with engine.connect() as conn:
+            return True
+    except Exception:
+        return False

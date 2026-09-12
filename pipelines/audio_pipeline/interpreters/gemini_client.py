@@ -11,12 +11,12 @@ load_dotenv()
 class GeminiAudioClient:
     """Manages audio inference against Gemini multimodal API."""
 
-    PRIMARY_MODEL = "gemini-2.5-flash-lite"
-    FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gemini-2.0-flash"]
+    PRIMARY_MODEL = "gemini-3.5-flash-lite"
+    FALLBACK_MODELS = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = (api_key or os.getenv("GEMINI_API_KEY", "")).strip()
-        self.preferred_model = model or self.PRIMARY_MODEL
+        self.preferred_model = model or os.getenv("GEMINI_MODEL") or self.PRIMARY_MODEL
 
     @property
     def is_available(self) -> bool:

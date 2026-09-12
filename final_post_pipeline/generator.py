@@ -1,7 +1,8 @@
 # generator.py
 import os
 import json
-from typing import Dict, Any
+import re
+from typing import Dict, Any, List, Optional
 from .types import FinalDeliverableResult, ProvenanceItem
 from .category_prompts import get_prompt_for_category
 from .mock import get_mock_final_deliverable
@@ -25,30 +26,62 @@ try:
 except ImportError:
     Groq = None
 
+def _extract_json_from_text(text: str) -> Optional[Dict[str, Any]]:
+    if not text:
+        return None
+    raw = text.strip()
+    if "<think>" in raw and "</think>" in raw:
+        raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    try:
+        return json.loads(raw)
+    except Exception:
+        pass
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
+    if match:
+        try:
+            return json.loads(match.group(1).strip())
+        except Exception:
+            pass
+    first_brace = raw.find("{")
+    last_brace = raw.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        try:
+            return json.loads(raw[first_brace:last_brace+1])
+        except Exception:
+            pass
+    return None
+
+
 def generate_final_deliverable(platform_key: str, approved_draft: str, content_md: str, metadata_json: Dict[str, Any], parameters: Dict[str, Any]) -> FinalDeliverableResult:
-    load_dotenv()
-    gemini_key = os.environ.get("GEMINI_API_KEY")
-    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
-    groq_key = os.environ.get("GROQ_API_KEY")
-    groq_model = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
+    load_dotenv(override=True)
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    groq_model = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b").strip()
 
     candidate_gemini_models = [
         gemini_model,
         "gemini-3.5-flash-lite",
-        "gemini-flash-lite-latest",
-        "gemini-3.5-flash",
         "gemini-flash-latest",
-        "gemini-2.5-flash-lite",
     ]
     seen_models = set()
     gemini_models_to_try = [m for m in candidate_gemini_models if m and not (m in seen_models or seen_models.add(m))]
+
+    candidate_groq_models = [
+        groq_model,
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "groq/compound",
+    ]
+    seen_gr = set()
+    groq_models_to_try = [m for m in candidate_groq_models if m and not (m in seen_gr or seen_gr.add(m))]
 
     # 1. Extract category-specific system instructions
     system_instruction = get_prompt_for_category(platform_key)
     
     # 2. Structure the prompt using XML-style tags for clear component separation
     prompt = f"""
-You must synthesize the <APPROVED_DRAFT> and the <GROUNDING_CONTEXT> to create the final deliverable.
+You must synthesize the <APPROVED_DRAFT> and the <GROUNDING_CONTEXT> to create the final deliverable for {platform_key.upper()}.
 Tailor the output explicitly to these <PARAMETERS>.
 
 <PARAMETERS>
@@ -95,41 +128,80 @@ Return a valid JSON object exactly matching this schema:
                         config=cfg,
                     )
                     raw = (resp.text or "").strip()
-                    if raw.startswith("```json"):
-                        raw = raw[7:]
-                    if raw.startswith("```"):
-                        raw = raw[3:]
-                    if raw.endswith("```"):
-                        raw = raw[:-3]
-                    data = json.loads(raw.strip())
-                    print(f"[final_post_pipeline] ✅ Gemini generation succeeded with model '{g_model}'.")
-                    break
+                    data = _extract_json_from_text(raw)
+                    if data and "final_content" in data:
+                        print(f"[final_post_pipeline] ✅ Gemini generation succeeded with model '{g_model}'.")
+                        break
+                    elif raw:
+                        # LLM generated direct text rather than strict JSON
+                        data = {"final_content": raw, "provenance": []}
+                        print(f"[final_post_pipeline] ✅ Gemini direct text accepted with model '{g_model}'.")
+                        break
                 except Exception as e:
                     print(f"[final_post_pipeline] ❌ Gemini deliverable generation failed for '{g_model}': {e}")
-                    if "404" in str(e) or "NOT_FOUND" in str(e) or "not available" in str(e).lower():
-                        continue
-                    else:
-                        break
+                    continue
         except Exception as e:
             print(f"[final_post_pipeline] ❌ Failed to initialize Gemini client: {e}")
 
     if data is None and groq_key and Groq:
         try:
             gclient = Groq(api_key=groq_key)
-            gresp = gclient.chat.completions.create(
-                model=groq_model,
-                messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3,
-            )
-            data = json.loads(gresp.choices[0].message.content)
+            for g_model in groq_models_to_try:
+                try:
+                    gresp = gclient.chat.completions.create(
+                        model=g_model,
+                        messages=[
+                            {"role": "system", "content": system_instruction + " Output valid JSON."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=3500,
+                        temperature=0.3,
+                    )
+                    raw = gresp.choices[0].message.content.strip()
+                    data = _extract_json_from_text(raw)
+                    if data and "final_content" in data:
+                        print(f"[final_post_pipeline] ✅ Groq deliverable succeeded with model '{g_model}'.")
+                        break
+                    elif raw:
+                        data = {"final_content": raw, "provenance": []}
+                        print(f"[final_post_pipeline] ✅ Groq direct text accepted with model '{g_model}'.")
+                        break
+                except Exception as e:
+                    print(f"[final_post_pipeline] ❌ Groq deliverable generation failed for '{g_model}': {e}")
+                    continue
         except Exception as e:
-            print(f"Groq final deliverable generation failed ({e}).")
+            print(f"[final_post_pipeline] ❌ Failed to initialize Groq client: {e}")
+
+    # Fallback to direct prompt if structured formatting failed but keys are present
+    if data is None and (gemini_key or groq_key):
+        direct_prompt = (
+            f"You are a cybersecurity expert. Write the final publication-ready deliverable for {platform_key}.\n"
+            f"Grounding context:\n{content_md[:3500]}\n\n"
+            f"Approved draft to polish:\n{approved_draft}\n\n"
+            f"Preserve all citation markers like [^src-1]."
+        )
+        if gemini_key and genai:
+            try:
+                client = genai.Client(api_key=gemini_key)
+                for m in gemini_models_to_try:
+                    try:
+                        resp = client.models.generate_content(model=m, contents=direct_prompt)
+                        if resp and resp.text:
+                            data = {"final_content": resp.text.strip(), "provenance": []}
+                            print(f"[final_post_pipeline] ✅ Direct Gemini deliverable generation succeeded.")
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
 
     if data is None:
+        if gemini_key or groq_key:
+            raise RuntimeError(
+                f"Failed to generate final deliverable for '{platform_key}' using configured LLM models. "
+                "Please verify model availability and network connection."
+            )
+        print("[final_post_pipeline] ⚠️ No API keys configured. Using get_mock_final_deliverable() fallback.")
         mock_res = get_mock_final_deliverable(platform_key, approved_draft)
         verification_report = verify_citations(mock_res.final_content, content_md)
         mock_res.verification = verification_report

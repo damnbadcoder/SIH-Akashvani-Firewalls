@@ -22,8 +22,9 @@ echo "=================================================="
 
 # Ensure backend finds common package environment
 SNAP_PY_PACKAGES="/home/samyakjain/snap/antigravity-cli/common/local/lib/python3.12/dist-packages"
+SNAP_PY_SITE="/home/samyakjain/snap/antigravity-cli/common/local/lib/python3.12/site-packages"
 if [ -d "$SNAP_PY_PACKAGES" ]; then
-    export PYTHONPATH="$SNAP_PY_PACKAGES:$PYTHONPATH"
+    export PYTHONPATH="$SNAP_PY_SITE:$SNAP_PY_PACKAGES:$PYTHONPATH"
 fi
 
 # Start backend

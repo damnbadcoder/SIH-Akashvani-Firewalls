@@ -26,8 +26,14 @@ for extra_pkg_path in [
         sys.path.insert(0, extra_pkg_path)
 
 try:
+    import distro
+    distro.distro._distro.os_release_file = '/usr/lib/os-release'
+except Exception:
+    pass
+
+try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
 except ImportError:
     pass
 
@@ -41,6 +47,9 @@ from pipelines.synthesis.server import run_server
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
+    gem_key = os.environ.get("GEMINI_API_KEY")
+    groq_key = os.environ.get("GROQ_API_KEY")
+    print(f"[+] LLM Providers Configured: Gemini={'YES' if gem_key else 'NO'}, Groq={'YES' if groq_key else 'NO'}")
     try:
         from backend.main import start_server
         print(f"[+] Starting Transmute FastAPI Backend with Uvicorn on port {port}...")

@@ -93,29 +93,38 @@ async def generate_plan_endpoint(
 
     else:
         payload = await request.json()
-        source_text = payload.get("sourceText") or payload.get("content_md") or ""
-        source_links = payload.get("sourceLinks") or []
+        source_text = payload.get("sourceText") or payload.get("content_md") or payload.get("source_text") or ""
+        source_links = payload.get("sourceLinks") or payload.get("source_links") or []
         outputs_raw = payload.get("outputs") or []
         selected_outputs_list = payload.get("selected_outputs") or []
         parameters = payload.get("parameters") or {}
+        file_ids = payload.get("file_ids") or payload.get("fileIds") or []
         is_organisation = bool(
             payload.get("isOrganisation", False) or payload.get("is_organization", False)
         )
 
         if not outputs_raw and selected_outputs_list:
-            outputs_raw = [{"id": k, "params": parameters} for k in selected_outputs_list]
+            outputs_raw = selected_outputs_list
 
     # Map output categories and collect parameters
     selected_keys = []
     merged_params = dict(parameters)
 
     for out in outputs_raw:
-        oid = out.get("id", "")
+        if isinstance(out, dict):
+            oid = out.get("id", "")
+            if "params" in out and isinstance(out["params"], dict):
+                merged_params.update(out["params"])
+        elif isinstance(out, str):
+            oid = out
+            if isinstance(parameters.get(oid), dict):
+                merged_params.update(parameters[oid])
+        else:
+            continue
+
         pkey = KEY_MAPPING.get(oid, oid)
-        if pkey not in selected_keys:
+        if pkey and pkey not in selected_keys:
             selected_keys.append(pkey)
-        if "params" in out and isinstance(out["params"], dict):
-            merged_params.update(out["params"])
 
     if not selected_keys:
         selected_keys = ["linkedin_post", "advisory"]
@@ -137,6 +146,15 @@ async def generate_plan_endpoint(
     extracted_md_sections = []
     citations: List[Citation] = []
     raw_citations_list: List[Dict[str, Any]] = []
+
+    # If file IDs were provided and no new files uploaded, fetch existing file context
+    if not uploaded_files and file_ids:
+        existing_files = db.query(FileRecord).filter(FileRecord.id.in_(file_ids)).all()
+        for ef in existing_files:
+            if ef.extracted_markdown:
+                extracted_md_sections.append(ef.extracted_markdown)
+            citations.append(Citation(id=f"src-{ef.id[:6]}", label=ef.filename, kind="file"))
+            raw_citations_list.append({"id": f"src-{ef.id[:6]}", "label": ef.filename, "kind": "file"})
 
     for idx, (filename, file_bytes) in enumerate(uploaded_files, 1):
         file_path, sha, file_size = storage_service.save_upload(
@@ -184,6 +202,9 @@ async def generate_plan_endpoint(
             foundational_md = "\n\n".join(extracted_md_sections)
     else:
         foundational_md = source_text
+
+    if not foundational_md or not foundational_md.strip():
+        foundational_md = "Comprehensive cyber threat intelligence and advisory overview."
 
     if not citations and source_text and source_text.strip():
         citations.append(Citation(id="src-1", label="Raw Telemetry & Advisory Input", kind="text"))

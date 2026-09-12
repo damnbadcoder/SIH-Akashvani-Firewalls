@@ -1,5 +1,13 @@
 import os
 from pathlib import Path
+
+# Safeguard for Linux snap sandboxing when reading distro information
+try:
+    import distro
+    distro.distro._distro.os_release_file = '/usr/lib/os-release'
+except Exception:
+    pass
+
 from pydantic_settings import BaseSettings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +33,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     # Server Network
     HOST: str = os.getenv("HOST", "0.0.0.0")
