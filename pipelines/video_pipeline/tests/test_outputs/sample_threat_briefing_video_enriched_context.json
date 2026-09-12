@@ -1,0 +1,42 @@
+{
+  "title": "Video Intelligence Briefing: CVE-2024-38077 (sample_threat_briefing.mp4)",
+  "executive_overview": "Multimodal intelligence analysis of sample_threat_briefing.mp4 spanning 6.0 seconds across 2 scenes.",
+  "minto_pyramid": {
+    "situation": "Enterprise infrastructure monitored during security briefing.",
+    "complication": "Vulnerability demonstration involving CVE-2024-38077.",
+    "solution": "Apply patches and block identified indicators of compromise.",
+    "business_impact_and_risk": "Risk of lateral movement and operational downtime."
+  },
+  "technical_root_cause": "Exploitation of vulnerabilities demonstrated in video session.",
+  "timeline_of_events": [
+    "Scene 1 [00:00 - 00:03]: Presentation slide covering: CYBER THREAT BRIEFING: CVE-2024-38077",
+    "Scene 2 [00:03 - 00:06]: Active command-line console session displaying terminal execution logs."
+  ],
+  "locked_numerical_facts": [
+    "Video duration: 6.0 seconds",
+    "Detected 2 distinct visual scenes"
+  ],
+  "actionable_mitigations": [
+    "Deploy vendor security updates",
+    "Monitor perimeter logs for identified C2 IPs"
+  ],
+  "indicators_of_compromise": {
+    "cves": [
+      "CVE-2024-38077"
+    ],
+    "ipv4_addresses": [
+      "198.51.100.42"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ],
+    "md5_hashes": [],
+    "domains": [],
+    "urls": [],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 3
+  },
+  "interpreted_by_model": "heuristic-video-anchor",
+  "generated_at": "2026-09-11T15:59:38.756001+00:00"
+}

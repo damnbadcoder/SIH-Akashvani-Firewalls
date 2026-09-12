@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "file_name": "sample_threat_briefing.mp4",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/samples/sample_threat_briefing.mp4",
+    "file_size_bytes": 348126,
+    "sha256_checksum": "eed54d261d95cf5fc40b4b985458a7849c2643feed8ee6277f77c42b8a230c02",
+    "duration_seconds": 6.0,
+    "fps": 10.0,
+    "resolution": "1280x720",
+    "total_frames": 60,
+    "has_audio": true,
+    "processed_at": "2026-09-11T15:59:43.115788+00:00"
+  },
+  "scenes": [
+    {
+      "scene_id": 1,
+      "start_seconds": 0.0,
+      "end_seconds": 3.9,
+      "timestamp_display": "00:00 - 00:03",
+      "keyframe": {
+        "frame_index": 24,
+        "timestamp_seconds": 2.4,
+        "image_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/test_outputs/keyframes/keyframe_001_2s.png",
+        "perceptual_hash": "bf3fc4e033c1c8c8",
+        "visual_type": "SLIDE"
+      },
+      "visual": {
+        "visual_type": "SLIDE",
+        "raw_ocr_text": "CYBER THREAT BRIEFING: CVE-2024-38077\n- Threat Actor: Volt Typhoon\n- Severity: CRITICAL (CVSS Base Score: 9.8)\n- Impacted Infrastructure: 1,500 enterprise servers\n- Action: Apply vendor emergency update immediately",
+        "structured_content": "#### 📑 Slide: CYBER THREAT BRIEFING: CVE-2024-38077\n- Threat Actor: Volt Typhoon\n- Severity: CRITICAL (CVSS Base Score: 9.8)\n- Impacted Infrastructure: 1,500 enterprise servers\n- Action: Apply vendor emergency update immediately",
+        "mermaid_diagram": null,
+        "code_snippet": null,
+        "extracted_iocs": [
+          "CVE-2024-38077"
+        ],
+        "visual_narrative": "Presentation slide covering: CYBER THREAT BRIEFING: CVE-2024-38077"
+      },
+      "spoken_transcript": "you",
+      "scene_iocs": [
+        "CVE-2024-38077"
+      ]
+    },
+    {
+      "scene_id": 2,
+      "start_seconds": 3.9,
+      "end_seconds": 6.0,
+      "timestamp_display": "00:03 - 00:06",
+      "keyframe": {
+        "frame_index": 54,
+        "timestamp_seconds": 5.4,
+        "image_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/test_outputs/keyframes/keyframe_002_5s.png",
+        "perceptual_hash": "c4c43a3a2697973b",
+        "visual_type": "TERMINAL"
+      },
+      "visual": {
+        "visual_type": "TERMINAL",
+        "raw_ocr_text": "root@defense-corp:~# nmap -p 443 198.51.100.42\nHost is up. Active C2 beacon to 198.51.100.42 detected.\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nIsolation command dispatched to perimeter firewall.",
+        "structured_content": "#### 💻 Terminal Session / Shell Output\n\n```bash\nroot@defense-corp:~# nmap -p 443 198.51.100.42\nHost is up. Active C2 beacon to 198.51.100.42 detected.\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nIsolation command dispatched to perimeter firewall.\n```",
+        "mermaid_diagram": null,
+        "code_snippet": "root@defense-corp:~# nmap -p 443 198.51.100.42\nHost is up. Active C2 beacon to 198.51.100.42 detected.\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nIsolation command dispatched to perimeter firewall.",
+        "extracted_iocs": [
+          "198.51.100.42",
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        ],
+        "visual_narrative": "Active command-line console session displaying terminal execution logs."
+      },
+      "spoken_transcript": "*(Silence or ambient audio)*",
+      "scene_iocs": [
+        "198.51.100.42",
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    }
+  ],
+  "full_audio_transcript": " you",
+  "iocs": {
+    "cves": [
+      "CVE-2024-38077"
+    ],
+    "ipv4_addresses": [
+      "198.51.100.42"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ],
+    "md5_hashes": [],
+    "domains": [],
+    "urls": [],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 3
+  },
+  "clean_markdown": "# 🎥 Multimodal Video Intelligence: sample_threat_briefing.mp4\n\n*Duration: 6.0s | Resolution: 1280x720 @ 10.0 FPS | SHA256: `eed54d261d95cf5f...`*\n\n## 1. Technical Telemetry & Extracted Indicators\n- **Total Visual Scenes:** 2\n- **Extracted CVEs:** CVE-2024-38077\n- **IPv4 Addresses:** 198.51.100.42\n- **SHA256 Signatures:** e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n- **Malicious Domains / URLs:** None detected\n\n## 2. Temporally Aligned Multimodal Scene Timeline\n\n### ⏱️ Scene 1 [00:00 - 00:03] - Visual: `SLIDE`\n**Spoken Narration:** \"you\"\n\n#### 📑 Slide: CYBER THREAT BRIEFING: CVE-2024-38077\n- Threat Actor: Volt Typhoon\n- Severity: CRITICAL (CVSS Base Score: 9.8)\n- Impacted Infrastructure: 1,500 enterprise servers\n- Action: Apply vendor emergency update immediately\n\n📌 **Scene Indicators:** `CVE-2024-38077`\n\n---\n### ⏱️ Scene 2 [00:03 - 00:06] - Visual: `TERMINAL`\n**Spoken Narration:** \"*(Silence or ambient audio)*\"\n\n#### 💻 Terminal Session / Shell Output\n\n```bash\nroot@defense-corp:~# nmap -p 443 198.51.100.42\nHost is up. Active C2 beacon to 198.51.100.42 detected.\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nIsolation command dispatched to perimeter firewall.\n```\n\n📌 **Scene Indicators:** `198.51.100.42, e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`\n\n---\n\n## 3. Full Continuous Audio Transcript\n\n>  you\n"
+}

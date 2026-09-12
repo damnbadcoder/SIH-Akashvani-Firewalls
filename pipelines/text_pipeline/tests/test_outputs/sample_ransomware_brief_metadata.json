@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "file_name": "sample_ransomware_brief.docx",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/text_pipeline/tests/samples/sample_ransomware_brief.docx",
+    "file_type": "docx",
+    "file_size_bytes": 37029,
+    "sha256_checksum": "6e8bc2c0cd486d41b68bf1259e1ca3d7639ca77ae4a7bd46f6d821b6497ea383",
+    "word_count": 59,
+    "character_count": 627,
+    "estimated_tokens": 156,
+    "line_count": 13,
+    "detected_encoding": "utf-8",
+    "processed_at": "2026-09-11T19:09:04.546806+00:00"
+  },
+  "clean_markdown": "# CISA Urgent Advisory: Ransomware Indicators\n\nAdvisory Date: 2026-07-19. Priority: CRITICAL.\n\nThreat Actor: LockBit 3.0 observed targeting VMware ESXi infrastructure.\n\nAttacker leveraged CVE-2024-37085 for authentication bypass.\n\n\n| IOC Type | Indicator Value                                                  | Context          |\n| -------- | ---------------------------------------------------------------- | ---------------- |\n| IPv4     | 203.0.113.50                                                     | C2 Drop point    |\n| SHA256   | ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad | Encrypter binary |",
+  "iocs": {
+    "cves": [
+      "CVE-2024-37085"
+    ],
+    "ipv4_addresses": [
+      "203.0.113.50"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    ],
+    "sha1_hashes": [],
+    "md5_hashes": [],
+    "domains": [],
+    "urls": [],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 3
+  },
+  "tables": [
+    {
+      "table_index": 1,
+      "headers": [
+        "IOC Type",
+        "Indicator Value",
+        "Context"
+      ],
+      "rows": [
+        [
+          "IPv4",
+          "203.0.113.50",
+          "C2 Drop point"
+        ],
+        [
+          "SHA256",
+          "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+          "Encrypter binary"
+        ]
+      ],
+      "markdown_representation": "| IOC Type | Indicator Value                                                  | Context          |\n| -------- | ---------------------------------------------------------------- | ---------------- |\n| IPv4     | 203.0.113.50                                                     | C2 Drop point    |\n| SHA256   | ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad | Encrypter binary |",
+      "row_count": 2,
+      "column_count": 3
+    }
+  ],
+  "threat_intel": {
+    "threat_actors": [
+      "LockBit 3.0"
+    ],
+    "affected_systems": [
+      "VMware ESXi"
+    ],
+    "severity_keywords": [
+      "CRITICAL"
+    ],
+    "cvss_scores": [],
+    "timelines": [
+      "2026-07-19"
+    ]
+  },
+  "llm_bundle": {
+    "system_grounding_header": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_ransomware_brief.docx (DOCX)\nDOCUMENT_SHA256: 6e8bc2c0cd486d41b68bf1259e1ca3d7639ca77ae4a7bd46f6d821b6497ea383\nWORD_COUNT: 59 | ESTIMATED_TOKENS: 156\n\nDETECTED_SEVERITY: CRITICAL\nIDENTIFIED_THREAT_ACTORS: LockBit 3.0\nAFFECTED_SYSTEMS: VMware ESXi\nDETECTED_TIMELINES: 2026-07-19\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2024-37085\nMITRE_ATTACK_TECHNIQUES: None identified\nIPV4_INDICATORS: 203.0.113.50\nIPV6_INDICATORS: None identified\nSHA256_HASHES: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: None identified\nURLS: None identified\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: IOC Type, Indicator Value, Context (2 rows)\n================================================================================",
+    "formatted_context_for_prompt": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_ransomware_brief.docx (DOCX)\nDOCUMENT_SHA256: 6e8bc2c0cd486d41b68bf1259e1ca3d7639ca77ae4a7bd46f6d821b6497ea383\nWORD_COUNT: 59 | ESTIMATED_TOKENS: 156\n\nDETECTED_SEVERITY: CRITICAL\nIDENTIFIED_THREAT_ACTORS: LockBit 3.0\nAFFECTED_SYSTEMS: VMware ESXi\nDETECTED_TIMELINES: 2026-07-19\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2024-37085\nMITRE_ATTACK_TECHNIQUES: None identified\nIPV4_INDICATORS: 203.0.113.50\nIPV6_INDICATORS: None identified\nSHA256_HASHES: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: None identified\nURLS: None identified\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: IOC Type, Indicator Value, Context (2 rows)\n================================================================================\n\n### FULL NORMALIZED DOCUMENT BODY\n\n```markdown\n# CISA Urgent Advisory: Ransomware Indicators\n\nAdvisory Date: 2026-07-19. Priority: CRITICAL.\n\nThreat Actor: LockBit 3.0 observed targeting VMware ESXi infrastructure.\n\nAttacker leveraged CVE-2024-37085 for authentication bypass.\n\n\n| IOC Type | Indicator Value                                                  | Context          |\n| -------- | ---------------------------------------------------------------- | ---------------- |\n| IPv4     | 203.0.113.50                                                     | C2 Drop point    |\n| SHA256   | ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad | Encrypter binary |\n```\n",
+    "semantic_chunks": [
+      {
+        "chunk_id": 1,
+        "parent_section": "CISA Urgent Advisory: Ransomware Indicators",
+        "text": "# CISA Urgent Advisory: Ransomware Indicators\n\nAdvisory Date: 2026-07-19. Priority: CRITICAL.\n\nThreat Actor: LockBit 3.0 observed targeting VMware ESXi infrastructure.\n\nAttacker leveraged CVE-2024-37085 for authentication bypass.\n\n\n| IOC Type | Indicator Value                                                  | Context          |\n| -------- | ---------------------------------------------------------------- | ---------------- |\n| IPv4     | 203.0.113.50                                                     | C2 Drop point    |\n| SHA256   | ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad | Encrypter binary |",
+        "token_estimate": 156,
+        "char_length": 627
+      }
+    ]
+  }
+}

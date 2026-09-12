@@ -1,0 +1,232 @@
+{
+  "metadata": {
+    "file_name": "RANSOMWARE_Report_Final.pdf",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/text_pipeline/tests/samples/RANSOMWARE_Report_Final.pdf",
+    "file_type": "pdf",
+    "file_size_bytes": 1459515,
+    "sha256_checksum": "291598b4aad0b24eba2be28a496c4ba9fc2b3ff2bc601603b23320b900689992",
+    "word_count": 1321,
+    "character_count": 9940,
+    "estimated_tokens": 2485,
+    "line_count": 367,
+    "detected_encoding": "utf-8",
+    "processed_at": "2026-09-11T19:09:23.954050+00:00"
+  },
+  "clean_markdown": "### 📋 Document Metadata\n- **Format:** PDF 1.7\n- **Title:** Black and Purple Abstract Tech General Report\n- **Author:** Santosh Kumar Pydipalli\n- **Keywords:** DAFHhRacXWQ,BAFEN_CMNSI\n- **Creator:** Microsoft® Word 2021\n- **Producer:** Microsoft® Word 2021\n- **Creationdate:** D:20220802150340+05'30'\n- **Moddate:** D:20220802150340+05'30'\n\n---\n\n<!-- Page 1 -->\n<!-- Start of picture text -->\n\\<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nINDIA<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nRANSOMWARE<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nREPORT<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nH1 - 2022<br><!-- End of picture text -->\n\nceri:<P\n\n**Visual / Scanned Content (OCR):**\n\nINDIA\nRANSOMWARE\nREPORT\nH1-2022\n\\ cert \"‘a\n\n---\n\n<!-- Page 2 -->\n### Table of Contents \n\n|At a Glance|03|\n|---|---|\n|Ransomware Statistics|04|\n|Ransomware Trends|05|\n|Ransomware Attack-Response|07|\n\n**Visual / Scanned Content (OCR):**\n\nTable of Contents\nAt a Glance 03\nRansomware Statistics 04\nRansomware Trends 05\nRansomware Attack-Response 07\n\n---\n\n<!-- Page 3 -->\n#### At a Glance \n\n\n\n\n\nRansomware incidents continue to grow in the year 2022 with attacks across multiple sectors including critical infrastructure. Threat actors are continuing to modernise their attack tool kits with high impact strategies. Ransomware As A Service (RAAS) eco system is evolving with sophisticated double and triple extortion tactics [Data exfiltration, DDoS] and wide range of ransomware campaigns through affiliates. This is leading to higher probability of monetization and further rise in attack campaigns. Post covid accelerated digitalization and hybrid work culture are also aiding this threat emergence. \n\nThreat actors are continuing to exploit known vulnerabilities, compromised credentials of remote access services and phishing campaigns for initial access into the infrastructure of organizations as well as citizens. \n\nThis present report covers the ransomware latest tactics and techniques along with sector wise trends observed in the first half of year-2022, specific to Indian cyber space. Also ransomware specific Incident response remediation and mitigation measures are covered as per the current threat landscape. \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 3\n\n---\n\n<!-- Page 4 -->\n# Ransomware Statistics EE \n\n\n\n<!-- Start of picture text -->\n[7<br><!-- End of picture text -->\n\n## 51% \n\n\n\nOverall, there is 51% increase in ransomware incidents reported in 2022-H1 compared to previous year [2021]. \n\n###### Prominent Ransomware Families observed in H1 2022 \n\n   - PPro,mirominent Ransomware Families \n\n   - Djvu/Stop                   –   Citizen centric attacks \n\n   - Lockbit [2.0 & 3.0]      -   Targeted attacks \n\n- Phobos is actively involved in both citizen centric \n\n   - and targeted attack campaigns \n\n- Hive group activity is observed in targeted attacks \n\n- Apart from these, the following are some of the variants observed in H1 2022 \n\nDjvu/Stop Lockbit Phobos Hive Others \n\n\n\n   - ALPHV                         Ragnar Locker             Makop \n\n   - ReVil                           Conti \n\n- Major sectors affected in H1 2022 \n\n- Majority of the attacks are observed in Datacentres/IT/ITeS sector followed by Manufacturing and Finance sectors. \n\n- Ransomware groups have also targeted critical infrastructure in H1 2022 including Oil& Gas, Transport, Power \n\n\n\n<!-- Start of picture text -->\nIT<br>Manufacturing<br>Finance<br>Education<br>Transport<br>Others<br><!-- End of picture text -->\n\n\n\nINDIA RANSOMWARE REPORT | PAGE 4\n\n---\n\n<!-- Page 5 -->\n- Ransomware Trends Initial Infection ▪ [T1190] \n\n- Ransomware gangs are focusing on known unpatched vulnerabilities of publicfacing applications for initial entry into the network, such asCVE-2019-19781 \n\n- Vulnerability in Citrix Application Delivery Controller (ADC) and Gateway 10.5, 11.1, 12.0, 12.1, and 13.0 CVE-2021-40539 \n\n- Vulnerability in Zoho ManageEngine ADSelfService Plus version 6113 and prior \n\n- ▪ [T1133] Compromised credentials of remote access services [VPN/ RDP] are being used by threat actors to gain entry into the network \n\n- ▪ [T1566] Targeted Phishing campaigns with embedded payloads like Emotet are also witnessed in H1-2022 for further ransomware infections \n\n- ▪ [T1189] “Drive by download” is the common tactic in citizen-centric ransomware cases INDIA RANSOMWARE REPORT | PAGE 5 \n\n- -\n\n---\n\n<!-- Page 6 -->\n#### Ransomware Trends \n\n\n\n##### Living off the Land \n\n\n\n- Threat actors are leveraging what is already available in the target environment instead of deploying custom tools and malware \n\n- In this way, malicious actions are less likely to flag security controls such as AV/EDR \n\nWindows Binaries \n\n- CMD.exe \n\n- PowerShell \n\n- Task Scheduler \n\n- WinRm \n\n- WMI/WMIC \n\n- Rundll32 \n\n\n\n\n\n\n\n\n\n\n\n##### Internal Reconnaissance \n\n\n\n- Advanced IP scanner \n\n\n\n- Netscan \n\n\n\n- AdFind \n\n- PingInfoVeiw \n\n\n\n##### Credential dumping \n\n\n\n- MimiKatz and its obfuscated versions \n\n\n\n- quarks pwdump \n\n\n\n\n\n##### Lateral Movement \n\n\n\n- Cobalt Strike \n\n- WinRM \n\n\n\n- PsExec \n\n\n\n* The above tool list is not exhaustive \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 6\n\n---\n\n<!-- Page 7 -->\n#### Ransomware Attack-Response \n\n\n\nIn case of any suspected ransomware incident, the following steps may be followed, as appropriate \n\n\n\n###### Step 1: Disconnect \n\n- Immediately disconnect and isolate infected systems from the network. If several systems or subnets appear impacted, take the infected network offline at the switch level \n\n- Disconnect all external storage: memory sticks, attached phones/cameras, external hard drives, USB drives \n\n- Turn off any wireless functionality: Wi-Fi, Bluetooth, NFC \n\n- Isolate backups immediately, if any connected to network \n\n- Consider temporarily disabling any external facing remote connectivity service [VPN/RDP] \n\nReport the incident to CERT-In and other regulatory authorities and lodge FIR with law enforcement agencies \n\n###### Step 2: Determine the scope of Infection for unauthorised access & signs of encryption \n\n- Mapped or shared drives /folders and Network storage devices of any kind \n\n- External Hard Drives and USB storage devices of any kind (USB   sticks, memory sticks, attached phones/cameras) \n\n- Connected networks through MPLS, Internet leased lines etc. including the infrastructure situated at different geographic locations \n\n- Cloud based storage services: Google Drive, Drop Box etc. \n\n###### Step 3: Determine the ransomware strain \n\n- Check for the ransomware type by evaluating encrypted file extension, ransom note /Lock screen. \n\n###### Step 4: Response \n\n- Preserve the logs of security devices, End points for necessary analysis \n\n- It is recommended to backup the encrypted files, in case a decryptor becomes available \n\n- Scan the working systems with updated Antivirus applications such as “Microsoft Safety Scanner” to determine the malicious binaries. Consider scanning the systems with multiple AV vendor applications to rule out any possible infection \n\n- Patch any existing vulnerabilities and harden the applications /infrastructure \n\n- Consider resetting all the account credentials that are possibly compromised and implement Privileged Access Management (PAM) \n\n- Implement proper network segmentation with controlled access to services/ applications and disable unnecessary services & ports \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 7\n\n---\n\n<!-- Page 8 -->\n#### Ransomware Attack-Response \n\n\n\n- Consider enabling multi-factor authentication, especially for public facing services/remote access applications \n\n\n\n- Deploy appropriate security controls such as latest AV/EDR, Firewall, IDS for monitoring and mitigating the cyber threats \n\nThe following URL may be referred for other relevant measures specific to Ransomware threat \n\n<u>https://www.csk.gov.in/alerts/ransomware.html</u> \n\n###### Restoration \n\n- It is recommended to rebuild all the infected systems with fresh installations. Make sure to rigorously sanitize the infected systems/applications/devices before bringing back into the network. \n\n- In case of Active Directory compromise, consider rebuilding all the systems under that domain with known good backup source. \n\nEnsure to follow the best security practices as listed in the below URL for AD rebuilding: <u>https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/bestpractices-for-securing-active-directory</u> \n\n- Monitor the network for any suspicious/ anomalous behaviour \n\n###### It is not recommended to Negotiate and/or Pay the Ransom \n\n###### Data Recovery \n\n- Check availability of the decryptors from trusted sources such as: <u>https://www.nomoreransom.org/en/decryption-tools.html</u> \n\nIn case of availability, try recovering the corrupted files in isolated environment \n\n- Restore the corrupted files from known good backup source, if available \n\n- Check for Shadow Copies if possible \n\n- Check for any previous versions of files that may be stored on cloud storage, e.g., Drop Box, Google Drive etc. \n\n\n\nCERT-In \n\nINDIA RANSOMWARE REPORT | PAGE 8\n\n**Explicit Reference Links & Resources (Not Threat IOCs):**\n- <https://www.csk.gov.in/alerts/ransomware.html>\n- [https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)\n- [practices-for-securing-active-directory](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)\n- <https://www.nomoreransom.org/en/decryption-tools.html>\n\n---\n\n<!-- Page 9 -->\nContact CERT-In for any Technical Assistance E-mail: incident@cert-in.org.in Phone: 1800-11-4949 FAX: 1800-11-6969 Web: https://www.cert-in.org.in \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 9",
+  "iocs": {
+    "cves": [
+      "CVE-2019-19781",
+      "CVE-2021-40539"
+    ],
+    "ipv4_addresses": [],
+    "ipv6_addresses": [],
+    "sha256_hashes": [],
+    "sha1_hashes": [],
+    "md5_hashes": [],
+    "domains": [],
+    "urls": [],
+    "mitre_attack_ids": [
+      "T1133",
+      "T1189",
+      "T1190",
+      "T1566"
+    ],
+    "total_iocs_found": 6
+  },
+  "tables": [
+    {
+      "table_index": 1,
+      "headers": [
+        "At a Glance",
+        "03"
+      ],
+      "rows": [
+        [
+          "Ransomware Statistics",
+          "04"
+        ],
+        [
+          "Ransomware Trends",
+          "05"
+        ],
+        [
+          "Ransomware Attack-Response",
+          "07"
+        ]
+      ],
+      "markdown_representation": "|At a Glance|03|\n|---|---|\n|Ransomware Statistics|04|\n|Ransomware Trends|05|\n|Ransomware Attack-Response|07|",
+      "row_count": 3,
+      "column_count": 2
+    }
+  ],
+  "threat_intel": {
+    "threat_actors": [
+      "ALPHV",
+      "Conti",
+      "Djvu/Stop",
+      "Hive",
+      "Lockbit",
+      "Makop",
+      "Phobos",
+      "Ragnar Locker",
+      "ReVil"
+    ],
+    "affected_systems": [
+      "Active Directory",
+      "Citrix Application Delivery Controller",
+      "Zoho ManageEngine ADSelfService Plus"
+    ],
+    "severity_keywords": [
+      "CRITICAL",
+      "HIGH"
+    ],
+    "cvss_scores": [],
+    "timelines": []
+  },
+  "llm_bundle": {
+    "system_grounding_header": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: RANSOMWARE_Report_Final.pdf (PDF)\nDOCUMENT_SHA256: 291598b4aad0b24eba2be28a496c4ba9fc2b3ff2bc601603b23320b900689992\nWORD_COUNT: 1321 | ESTIMATED_TOKENS: 2485\n\nDETECTED_SEVERITY: CRITICAL, HIGH\nIDENTIFIED_THREAT_ACTORS: ALPHV, Conti, Djvu/Stop, Hive, Lockbit, Makop, Phobos, Ragnar Locker, ReVil\nAFFECTED_SYSTEMS: Active Directory, Citrix Application Delivery Controller, Zoho ManageEngine ADSelfService Plus\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2019-19781, CVE-2021-40539\nMITRE_ATTACK_TECHNIQUES: T1133, T1189, T1190, T1566\nIPV4_INDICATORS: None identified\nIPV6_INDICATORS: None identified\nSHA256_HASHES: None identified\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: None identified\nURLS: None identified\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: At a Glance, 03 (3 rows)\n================================================================================",
+    "formatted_context_for_prompt": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: RANSOMWARE_Report_Final.pdf (PDF)\nDOCUMENT_SHA256: 291598b4aad0b24eba2be28a496c4ba9fc2b3ff2bc601603b23320b900689992\nWORD_COUNT: 1321 | ESTIMATED_TOKENS: 2485\n\nDETECTED_SEVERITY: CRITICAL, HIGH\nIDENTIFIED_THREAT_ACTORS: ALPHV, Conti, Djvu/Stop, Hive, Lockbit, Makop, Phobos, Ragnar Locker, ReVil\nAFFECTED_SYSTEMS: Active Directory, Citrix Application Delivery Controller, Zoho ManageEngine ADSelfService Plus\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2019-19781, CVE-2021-40539\nMITRE_ATTACK_TECHNIQUES: T1133, T1189, T1190, T1566\nIPV4_INDICATORS: None identified\nIPV6_INDICATORS: None identified\nSHA256_HASHES: None identified\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: None identified\nURLS: None identified\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: At a Glance, 03 (3 rows)\n================================================================================\n\n### FULL NORMALIZED DOCUMENT BODY\n\n```markdown\n### 📋 Document Metadata\n- **Format:** PDF 1.7\n- **Title:** Black and Purple Abstract Tech General Report\n- **Author:** Santosh Kumar Pydipalli\n- **Keywords:** DAFHhRacXWQ,BAFEN_CMNSI\n- **Creator:** Microsoft® Word 2021\n- **Producer:** Microsoft® Word 2021\n- **Creationdate:** D:20220802150340+05'30'\n- **Moddate:** D:20220802150340+05'30'\n\n---\n\n<!-- Page 1 -->\n<!-- Start of picture text -->\n\\<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nINDIA<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nRANSOMWARE<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nREPORT<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nH1 - 2022<br><!-- End of picture text -->\n\nceri:<P\n\n**Visual / Scanned Content (OCR):**\n\nINDIA\nRANSOMWARE\nREPORT\nH1-2022\n\\ cert \"‘a\n\n---\n\n<!-- Page 2 -->\n### Table of Contents \n\n|At a Glance|03|\n|---|---|\n|Ransomware Statistics|04|\n|Ransomware Trends|05|\n|Ransomware Attack-Response|07|\n\n**Visual / Scanned Content (OCR):**\n\nTable of Contents\nAt a Glance 03\nRansomware Statistics 04\nRansomware Trends 05\nRansomware Attack-Response 07\n\n---\n\n<!-- Page 3 -->\n#### At a Glance \n\n\n\n\n\nRansomware incidents continue to grow in the year 2022 with attacks across multiple sectors including critical infrastructure. Threat actors are continuing to modernise their attack tool kits with high impact strategies. Ransomware As A Service (RAAS) eco system is evolving with sophisticated double and triple extortion tactics [Data exfiltration, DDoS] and wide range of ransomware campaigns through affiliates. This is leading to higher probability of monetization and further rise in attack campaigns. Post covid accelerated digitalization and hybrid work culture are also aiding this threat emergence. \n\nThreat actors are continuing to exploit known vulnerabilities, compromised credentials of remote access services and phishing campaigns for initial access into the infrastructure of organizations as well as citizens. \n\nThis present report covers the ransomware latest tactics and techniques along with sector wise trends observed in the first half of year-2022, specific to Indian cyber space. Also ransomware specific Incident response remediation and mitigation measures are covered as per the current threat landscape. \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 3\n\n---\n\n<!-- Page 4 -->\n# Ransomware Statistics EE \n\n\n\n<!-- Start of picture text -->\n[7<br><!-- End of picture text -->\n\n## 51% \n\n\n\nOverall, there is 51% increase in ransomware incidents reported in 2022-H1 compared to previous year [2021]. \n\n###### Prominent Ransomware Families observed in H1 2022 \n\n   - PPro,mirominent Ransomware Families \n\n   - Djvu/Stop                   –   Citizen centric attacks \n\n   - Lockbit [2.0 & 3.0]      -   Targeted attacks \n\n- Phobos is actively involved in both citizen centric \n\n   - and targeted attack campaigns \n\n- Hive group activity is observed in targeted attacks \n\n- Apart from these, the following are some of the variants observed in H1 2022 \n\nDjvu/Stop Lockbit Phobos Hive Others \n\n\n\n   - ALPHV                         Ragnar Locker             Makop \n\n   - ReVil                           Conti \n\n- Major sectors affected in H1 2022 \n\n- Majority of the attacks are observed in Datacentres/IT/ITeS sector followed by Manufacturing and Finance sectors. \n\n- Ransomware groups have also targeted critical infrastructure in H1 2022 including Oil& Gas, Transport, Power \n\n\n\n<!-- Start of picture text -->\nIT<br>Manufacturing<br>Finance<br>Education<br>Transport<br>Others<br><!-- End of picture text -->\n\n\n\nINDIA RANSOMWARE REPORT | PAGE 4\n\n---\n\n<!-- Page 5 -->\n- Ransomware Trends Initial Infection ▪ [T1190] \n\n- Ransomware gangs are focusing on known unpatched vulnerabilities of publicfacing applications for initial entry into the network, such asCVE-2019-19781 \n\n- Vulnerability in Citrix Application Delivery Controller (ADC) and Gateway 10.5, 11.1, 12.0, 12.1, and 13.0 CVE-2021-40539 \n\n- Vulnerability in Zoho ManageEngine ADSelfService Plus version 6113 and prior \n\n- ▪ [T1133] Compromised credentials of remote access services [VPN/ RDP] are being used by threat actors to gain entry into the network \n\n- ▪ [T1566] Targeted Phishing campaigns with embedded payloads like Emotet are also witnessed in H1-2022 for further ransomware infections \n\n- ▪ [T1189] “Drive by download” is the common tactic in citizen-centric ransomware cases INDIA RANSOMWARE REPORT | PAGE 5 \n\n- -\n\n---\n\n<!-- Page 6 -->\n#### Ransomware Trends \n\n\n\n##### Living off the Land \n\n\n\n- Threat actors are leveraging what is already available in the target environment instead of deploying custom tools and malware \n\n- In this way, malicious actions are less likely to flag security controls such as AV/EDR \n\nWindows Binaries \n\n- CMD.exe \n\n- PowerShell \n\n- Task Scheduler \n\n- WinRm \n\n- WMI/WMIC \n\n- Rundll32 \n\n\n\n\n\n\n\n\n\n\n\n##### Internal Reconnaissance \n\n\n\n- Advanced IP scanner \n\n\n\n- Netscan \n\n\n\n- AdFind \n\n- PingInfoVeiw \n\n\n\n##### Credential dumping \n\n\n\n- MimiKatz and its obfuscated versions \n\n\n\n- quarks pwdump \n\n\n\n\n\n##### Lateral Movement \n\n\n\n- Cobalt Strike \n\n- WinRM \n\n\n\n- PsExec \n\n\n\n* The above tool list is not exhaustive \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 6\n\n---\n\n<!-- Page 7 -->\n#### Ransomware Attack-Response \n\n\n\nIn case of any suspected ransomware incident, the following steps may be followed, as appropriate \n\n\n\n###### Step 1: Disconnect \n\n- Immediately disconnect and isolate infected systems from the network. If several systems or subnets appear impacted, take the infected network offline at the switch level \n\n- Disconnect all external storage: memory sticks, attached phones/cameras, external hard drives, USB drives \n\n- Turn off any wireless functionality: Wi-Fi, Bluetooth, NFC \n\n- Isolate backups immediately, if any connected to network \n\n- Consider temporarily disabling any external facing remote connectivity service [VPN/RDP] \n\nReport the incident to CERT-In and other regulatory authorities and lodge FIR with law enforcement agencies \n\n###### Step 2: Determine the scope of Infection for unauthorised access & signs of encryption \n\n- Mapped or shared drives /folders and Network storage devices of any kind \n\n- External Hard Drives and USB storage devices of any kind (USB   sticks, memory sticks, attached phones/cameras) \n\n- Connected networks through MPLS, Internet leased lines etc. including the infrastructure situated at different geographic locations \n\n- Cloud based storage services: Google Drive, Drop Box etc. \n\n###### Step 3: Determine the ransomware strain \n\n- Check for the ransomware type by evaluating encrypted file extension, ransom note /Lock screen. \n\n###### Step 4: Response \n\n- Preserve the logs of security devices, End points for necessary analysis \n\n- It is recommended to backup the encrypted files, in case a decryptor becomes available \n\n- Scan the working systems with updated Antivirus applications such as “Microsoft Safety Scanner” to determine the malicious binaries. Consider scanning the systems with multiple AV vendor applications to rule out any possible infection \n\n- Patch any existing vulnerabilities and harden the applications /infrastructure \n\n- Consider resetting all the account credentials that are possibly compromised and implement Privileged Access Management (PAM) \n\n- Implement proper network segmentation with controlled access to services/ applications and disable unnecessary services & ports \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 7\n\n---\n\n<!-- Page 8 -->\n#### Ransomware Attack-Response \n\n\n\n- Consider enabling multi-factor authentication, especially for public facing services/remote access applications \n\n\n\n- Deploy appropriate security controls such as latest AV/EDR, Firewall, IDS for monitoring and mitigating the cyber threats \n\nThe following URL may be referred for other relevant measures specific to Ransomware threat \n\n<u>https://www.csk.gov.in/alerts/ransomware.html</u> \n\n###### Restoration \n\n- It is recommended to rebuild all the infected systems with fresh installations. Make sure to rigorously sanitize the infected systems/applications/devices before bringing back into the network. \n\n- In case of Active Directory compromise, consider rebuilding all the systems under that domain with known good backup source. \n\nEnsure to follow the best security practices as listed in the below URL for AD rebuilding: <u>https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/bestpractices-for-securing-active-directory</u> \n\n- Monitor the network for any suspicious/ anomalous behaviour \n\n###### It is not recommended to Negotiate and/or Pay the Ransom \n\n###### Data Recovery \n\n- Check availability of the decryptors from trusted sources such as: <u>https://www.nomoreransom.org/en/decryption-tools.html</u> \n\nIn case of availability, try recovering the corrupted files in isolated environment \n\n- Restore the corrupted files from known good backup source, if available \n\n- Check for Shadow Copies if possible \n\n- Check for any previous versions of files that may be stored on cloud storage, e.g., Drop Box, Google Drive etc. \n\n\n\nCERT-In \n\nINDIA RANSOMWARE REPORT | PAGE 8\n\n**Explicit Reference Links & Resources (Not Threat IOCs):**\n- <https://www.csk.gov.in/alerts/ransomware.html>\n- [https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)\n- [practices-for-securing-active-directory](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)\n- <https://www.nomoreransom.org/en/decryption-tools.html>\n\n---\n\n<!-- Page 9 -->\nContact CERT-In for any Technical Assistance E-mail: incident@cert-in.org.in Phone: 1800-11-4949 FAX: 1800-11-6969 Web: https://www.cert-in.org.in \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 9\n```\n",
+    "semantic_chunks": [
+      {
+        "chunk_id": 1,
+        "parent_section": "📋 Document Metadata",
+        "text": "### 📋 Document Metadata\n- **Format:** PDF 1.7\n- **Title:** Black and Purple Abstract Tech General Report\n- **Author:** Santosh Kumar Pydipalli\n- **Keywords:** DAFHhRacXWQ,BAFEN_CMNSI\n- **Creator:** Microsoft® Word 2021\n- **Producer:** Microsoft® Word 2021\n- **Creationdate:** D:20220802150340+05'30'\n- **Moddate:** D:20220802150340+05'30'\n\n---\n\n<!-- Page 1 -->\n<!-- Start of picture text -->\n\\<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nINDIA<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nRANSOMWARE<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nREPORT<br><!-- End of picture text -->\n\n\n\n<!-- Start of picture text -->\nH1 - 2022<br><!-- End of picture text -->\n\nceri:<P\n\n**Visual / Scanned Content (OCR):**\n\nINDIA\nRANSOMWARE\nREPORT\nH1-2022\n\\ cert \"‘a\n\n---\n\n<!-- Page 2 -->",
+        "token_estimate": 208,
+        "char_length": 835
+      },
+      {
+        "chunk_id": 2,
+        "parent_section": "Table of Contents",
+        "text": "### Table of Contents \n\n|At a Glance|03|\n|---|---|\n|Ransomware Statistics|04|\n|Ransomware Trends|05|\n|Ransomware Attack-Response|07|\n\n**Visual / Scanned Content (OCR):**\n\nTable of Contents\nAt a Glance 03\nRansomware Statistics 04\nRansomware Trends 05\nRansomware Attack-Response 07\n\n---\n\n<!-- Page 3 -->",
+        "token_estimate": 75,
+        "char_length": 301
+      },
+      {
+        "chunk_id": 3,
+        "parent_section": "At a Glance",
+        "text": "#### At a Glance \n\n\n\n\n\nRansomware incidents continue to grow in the year 2022 with attacks across multiple sectors including critical infrastructure. Threat actors are continuing to modernise their attack tool kits with high impact strategies. Ransomware As A Service (RAAS) eco system is evolving with sophisticated double and triple extortion tactics [Data exfiltration, DDoS] and wide range of ransomware campaigns through affiliates. This is leading to higher probability of monetization and further rise in attack campaigns. Post covid accelerated digitalization and hybrid work culture are also aiding this threat emergence. \n\nThreat actors are continuing to exploit known vulnerabilities, compromised credentials of remote access services and phishing campaigns for initial access into the infrastructure of organizations as well as citizens. \n\nThis present report covers the ransomware latest tactics and techniques along with sector wise trends observed in the first half of year-2022, specific to Indian cyber space. Also ransomware specific Incident response remediation and mitigation measures are covered as per the current threat landscape. \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 3\n\n---\n\n<!-- Page 4 -->",
+        "token_estimate": 303,
+        "char_length": 1213
+      },
+      {
+        "chunk_id": 4,
+        "parent_section": "Ransomware Statistics EE",
+        "text": "# Ransomware Statistics EE \n\n\n\n<!-- Start of picture text -->\n[7<br><!-- End of picture text -->",
+        "token_estimate": 24,
+        "char_length": 96
+      },
+      {
+        "chunk_id": 5,
+        "parent_section": "51%",
+        "text": "## 51% \n\n\n\nOverall, there is 51% increase in ransomware incidents reported in 2022-H1 compared to previous year [2021].",
+        "token_estimate": 29,
+        "char_length": 119
+      },
+      {
+        "chunk_id": 6,
+        "parent_section": "Prominent Ransomware Families observed in H1 2022",
+        "text": "###### Prominent Ransomware Families observed in H1 2022 \n\n   - PPro,mirominent Ransomware Families \n\n   - Djvu/Stop                   –   Citizen centric attacks \n\n   - Lockbit [2.0 & 3.0]      -   Targeted attacks \n\n- Phobos is actively involved in both citizen centric \n\n   - and targeted attack campaigns \n\n- Hive group activity is observed in targeted attacks \n\n- Apart from these, the following are some of the variants observed in H1 2022 \n\nDjvu/Stop Lockbit Phobos Hive Others \n\n\n\n   - ALPHV                         Ragnar Locker             Makop \n\n   - ReVil                           Conti \n\n- Major sectors affected in H1 2022 \n\n- Majority of the attacks are observed in Datacentres/IT/ITeS sector followed by Manufacturing and Finance sectors. \n\n- Ransomware groups have also targeted critical infrastructure in H1 2022 including Oil& Gas, Transport, Power \n\n\n\n<!-- Start of picture text -->\nIT<br>Manufacturing<br>Finance<br>Education<br>Transport<br>Others<br><!-- End of picture text -->\n\n\n\nINDIA RANSOMWARE REPORT | PAGE 4\n\n---\n\n<!-- Page 5 -->\n- Ransomware Trends Initial Infection ▪ [T1190] \n\n- Ransomware gangs are focusing on known unpatched vulnerabilities of publicfacing applications for initial entry into the network, such asCVE-2019-19781 \n\n- Vulnerability in Citrix Application Delivery Controller (ADC) and Gateway 10.5, 11.1, 12.0, 12.1, and 13.0 CVE-2021-40539 \n\n- Vulnerability in Zoho ManageEngine ADSelfService Plus version 6113 and prior \n\n- ▪ [T1133] Compromised credentials of remote access services [VPN/ RDP] are being used by threat actors to gain entry into the network \n\n- ▪ [T1566] Targeted Phishing campaigns with embedded payloads like Emotet are also witnessed in H1-2022 for further ransomware infections \n\n- ▪ [T1189] “Drive by download” is the common tactic in citizen-centric ransomware cases INDIA RANSOMWARE REPORT | PAGE 5 \n\n- -\n\n---\n\n<!-- Page 6 -->",
+        "token_estimate": 475,
+        "char_length": 1903
+      },
+      {
+        "chunk_id": 7,
+        "parent_section": "Ransomware Trends",
+        "text": "#### Ransomware Trends",
+        "token_estimate": 5,
+        "char_length": 22
+      },
+      {
+        "chunk_id": 8,
+        "parent_section": "Living off the Land",
+        "text": "##### Living off the Land \n\n\n\n- Threat actors are leveraging what is already available in the target environment instead of deploying custom tools and malware \n\n- In this way, malicious actions are less likely to flag security controls such as AV/EDR \n\nWindows Binaries \n\n- CMD.exe \n\n- PowerShell \n\n- Task Scheduler \n\n- WinRm \n\n- WMI/WMIC \n\n- Rundll32",
+        "token_estimate": 87,
+        "char_length": 351
+      },
+      {
+        "chunk_id": 9,
+        "parent_section": "Internal Reconnaissance",
+        "text": "##### Internal Reconnaissance \n\n\n\n- Advanced IP scanner \n\n\n\n- Netscan \n\n\n\n- AdFind \n\n- PingInfoVeiw",
+        "token_estimate": 24,
+        "char_length": 99
+      },
+      {
+        "chunk_id": 10,
+        "parent_section": "Credential dumping",
+        "text": "##### Credential dumping \n\n\n\n- MimiKatz and its obfuscated versions \n\n\n\n- quarks pwdump",
+        "token_estimate": 21,
+        "char_length": 87
+      },
+      {
+        "chunk_id": 11,
+        "parent_section": "Lateral Movement",
+        "text": "##### Lateral Movement \n\n\n\n- Cobalt Strike \n\n- WinRM \n\n\n\n- PsExec \n\n\n\n* The above tool list is not exhaustive \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 6\n\n---\n\n<!-- Page 7 -->",
+        "token_estimate": 42,
+        "char_length": 168
+      },
+      {
+        "chunk_id": 12,
+        "parent_section": "Ransomware Attack-Response",
+        "text": "#### Ransomware Attack-Response \n\n\n\nIn case of any suspected ransomware incident, the following steps may be followed, as appropriate",
+        "token_estimate": 33,
+        "char_length": 133
+      },
+      {
+        "chunk_id": 13,
+        "parent_section": "Step 1: Disconnect",
+        "text": "###### Step 1: Disconnect \n\n- Immediately disconnect and isolate infected systems from the network. If several systems or subnets appear impacted, take the infected network offline at the switch level \n\n- Disconnect all external storage: memory sticks, attached phones/cameras, external hard drives, USB drives \n\n- Turn off any wireless functionality: Wi-Fi, Bluetooth, NFC \n\n- Isolate backups immediately, if any connected to network \n\n- Consider temporarily disabling any external facing remote connectivity service [VPN/RDP] \n\nReport the incident to CERT-In and other regulatory authorities and lodge FIR with law enforcement agencies",
+        "token_estimate": 159,
+        "char_length": 637
+      },
+      {
+        "chunk_id": 14,
+        "parent_section": "Step 2: Determine the scope of Infection for unauthorised access & signs of encryption",
+        "text": "###### Step 2: Determine the scope of Infection for unauthorised access & signs of encryption \n\n- Mapped or shared drives /folders and Network storage devices of any kind \n\n- External Hard Drives and USB storage devices of any kind (USB   sticks, memory sticks, attached phones/cameras) \n\n- Connected networks through MPLS, Internet leased lines etc. including the infrastructure situated at different geographic locations \n\n- Cloud based storage services: Google Drive, Drop Box etc.",
+        "token_estimate": 121,
+        "char_length": 484
+      },
+      {
+        "chunk_id": 15,
+        "parent_section": "Step 3: Determine the ransomware strain",
+        "text": "###### Step 3: Determine the ransomware strain \n\n- Check for the ransomware type by evaluating encrypted file extension, ransom note /Lock screen.",
+        "token_estimate": 36,
+        "char_length": 146
+      },
+      {
+        "chunk_id": 16,
+        "parent_section": "Step 4: Response",
+        "text": "###### Step 4: Response \n\n- Preserve the logs of security devices, End points for necessary analysis \n\n- It is recommended to backup the encrypted files, in case a decryptor becomes available \n\n- Scan the working systems with updated Antivirus applications such as “Microsoft Safety Scanner” to determine the malicious binaries. Consider scanning the systems with multiple AV vendor applications to rule out any possible infection \n\n- Patch any existing vulnerabilities and harden the applications /infrastructure \n\n- Consider resetting all the account credentials that are possibly compromised and implement Privileged Access Management (PAM) \n\n- Implement proper network segmentation with controlled access to services/ applications and disable unnecessary services & ports \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 7\n\n---\n\n<!-- Page 8 -->",
+        "token_estimate": 208,
+        "char_length": 834
+      },
+      {
+        "chunk_id": 17,
+        "parent_section": "Ransomware Attack-Response",
+        "text": "#### Ransomware Attack-Response \n\n\n\n- Consider enabling multi-factor authentication, especially for public facing services/remote access applications \n\n\n\n- Deploy appropriate security controls such as latest AV/EDR, Firewall, IDS for monitoring and mitigating the cyber threats \n\nThe following URL may be referred for other relevant measures specific to Ransomware threat \n\n<u>https://www.csk.gov.in/alerts/ransomware.html</u>",
+        "token_estimate": 106,
+        "char_length": 426
+      },
+      {
+        "chunk_id": 18,
+        "parent_section": "Restoration",
+        "text": "###### Restoration \n\n- It is recommended to rebuild all the infected systems with fresh installations. Make sure to rigorously sanitize the infected systems/applications/devices before bringing back into the network. \n\n- In case of Active Directory compromise, consider rebuilding all the systems under that domain with known good backup source. \n\nEnsure to follow the best security practices as listed in the below URL for AD rebuilding: <u>https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/bestpractices-for-securing-active-directory</u> \n\n- Monitor the network for any suspicious/ anomalous behaviour",
+        "token_estimate": 161,
+        "char_length": 645
+      },
+      {
+        "chunk_id": 19,
+        "parent_section": "It is not recommended to Negotiate and/or Pay the Ransom",
+        "text": "###### It is not recommended to Negotiate and/or Pay the Ransom",
+        "token_estimate": 15,
+        "char_length": 63
+      },
+      {
+        "chunk_id": 20,
+        "parent_section": "Data Recovery",
+        "text": "###### Data Recovery \n\n- Check availability of the decryptors from trusted sources such as: <u>https://www.nomoreransom.org/en/decryption-tools.html</u> \n\nIn case of availability, try recovering the corrupted files in isolated environment \n\n- Restore the corrupted files from known good backup source, if available \n\n- Check for Shadow Copies if possible \n\n- Check for any previous versions of files that may be stored on cloud storage, e.g., Drop Box, Google Drive etc. \n\n\n\nCERT-In \n\nINDIA RANSOMWARE REPORT | PAGE 8\n\n**Explicit Reference Links & Resources (Not Threat IOCs):**\n- <https://www.csk.gov.in/alerts/ransomware.html>\n- [https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)\n- [practices-for-securing-active-directory](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)\n- <https://www.nomoreransom.org/en/decryption-tools.html>\n\n---\n\n<!-- Page 9 -->\nContact CERT-In for any Technical Assistance E-mail: incident@cert-in.org.in Phone: 1800-11-4949 FAX: 1800-11-6969 Web: https://www.cert-in.org.in \n\n\n\nINDIA RANSOMWARE REPORT | PAGE 9",
+        "token_estimate": 328,
+        "char_length": 1314
+      }
+    ]
+  }
+}

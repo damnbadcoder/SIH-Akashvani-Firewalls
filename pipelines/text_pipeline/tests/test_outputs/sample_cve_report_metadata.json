@@ -1,0 +1,108 @@
+{
+  "metadata": {
+    "file_name": "sample_cve_report.pdf",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/text_pipeline/tests/samples/sample_cve_report.pdf",
+    "file_type": "pdf",
+    "file_size_bytes": 1328,
+    "sha256_checksum": "534dc7967818d5650a97954b9ae04298c9cfdfe4cdce8db450021f3eb6ea7083",
+    "word_count": 90,
+    "character_count": 660,
+    "estimated_tokens": 165,
+    "line_count": 27,
+    "detected_encoding": "utf-8",
+    "processed_at": "2026-09-11T19:09:12.675487+00:00"
+  },
+  "clean_markdown": "### 📋 Document Metadata\n- **Format:** PDF 1.7\n\n---\n\n<!-- Page 1 -->\n# CRITICAL VULNERABILITY ALERT: CVE-2024-38077 \n\nDate: 2026-08-20 Organization: Defense Cyber Agency Severity: CRITICAL Base Score: 9.8 \n\n# Overview: \n\nActive exploitation of CVE-2024-38077 affecting Windows Server 2019 and Windows Server 2022. Threat Actor: Volt Typhoon has been observed deploying webshells. \n\nObserved IOCs: \n\n- C2 IP: 198.51.100.120 \n\n- Malicious Hash: a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e \n\n- Domain: evil-c2-beacon.org \n\n- | Hostname | IP Address | Status | \n\n- | dc-srv-01 | 10.0.1.15 | Vulnerable | \n\n- | app-srv-02 | 10.0.2.22 | Patched |",
+  "iocs": {
+    "cves": [
+      "CVE-2024-38077"
+    ],
+    "ipv4_addresses": [
+      "10.0.1.15",
+      "10.0.2.22",
+      "198.51.100.120"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
+    ],
+    "sha1_hashes": [],
+    "md5_hashes": [],
+    "domains": [
+      "evil-c2-beacon.org"
+    ],
+    "urls": [],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 6
+  },
+  "tables": [
+    {
+      "table_index": 1,
+      "headers": [
+        "Hostname",
+        "IP Address",
+        "Status"
+      ],
+      "rows": [
+        [
+          "dc-srv-01",
+          "10.0.1.15",
+          "Vulnerable"
+        ],
+        [
+          "app-srv-02",
+          "10.0.2.22",
+          "Patched"
+        ]
+      ],
+      "markdown_representation": "| Hostname | IP Address | Status |\n| dc-srv-01 | 10.0.1.15 | Vulnerable |\n| app-srv-02 | 10.0.2.22 | Patched |",
+      "row_count": 2,
+      "column_count": 3
+    }
+  ],
+  "threat_intel": {
+    "threat_actors": [
+      "Volt Typhoon"
+    ],
+    "affected_systems": [
+      "Windows Server 2019",
+      "Windows Server 2022"
+    ],
+    "severity_keywords": [
+      "CRITICAL"
+    ],
+    "cvss_scores": [
+      9.8
+    ],
+    "timelines": [
+      "2026-08-20"
+    ]
+  },
+  "llm_bundle": {
+    "system_grounding_header": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_cve_report.pdf (PDF)\nDOCUMENT_SHA256: 534dc7967818d5650a97954b9ae04298c9cfdfe4cdce8db450021f3eb6ea7083\nWORD_COUNT: 90 | ESTIMATED_TOKENS: 165\n\nDETECTED_SEVERITY: CRITICAL\nCVSS_SCORES: 9.8\nIDENTIFIED_THREAT_ACTORS: Volt Typhoon\nAFFECTED_SYSTEMS: Windows Server 2019, Windows Server 2022\nDETECTED_TIMELINES: 2026-08-20\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2024-38077\nMITRE_ATTACK_TECHNIQUES: None identified\nIPV4_INDICATORS: 10.0.1.15, 10.0.2.22, 198.51.100.120\nIPV6_INDICATORS: None identified\nSHA256_HASHES: a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: evil-c2-beacon.org\nURLS: None identified\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: Hostname, IP Address, Status (2 rows)\n================================================================================",
+    "formatted_context_for_prompt": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_cve_report.pdf (PDF)\nDOCUMENT_SHA256: 534dc7967818d5650a97954b9ae04298c9cfdfe4cdce8db450021f3eb6ea7083\nWORD_COUNT: 90 | ESTIMATED_TOKENS: 165\n\nDETECTED_SEVERITY: CRITICAL\nCVSS_SCORES: 9.8\nIDENTIFIED_THREAT_ACTORS: Volt Typhoon\nAFFECTED_SYSTEMS: Windows Server 2019, Windows Server 2022\nDETECTED_TIMELINES: 2026-08-20\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2024-38077\nMITRE_ATTACK_TECHNIQUES: None identified\nIPV4_INDICATORS: 10.0.1.15, 10.0.2.22, 198.51.100.120\nIPV6_INDICATORS: None identified\nSHA256_HASHES: a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: evil-c2-beacon.org\nURLS: None identified\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: Hostname, IP Address, Status (2 rows)\n================================================================================\n\n### FULL NORMALIZED DOCUMENT BODY\n\n```markdown\n### 📋 Document Metadata\n- **Format:** PDF 1.7\n\n---\n\n<!-- Page 1 -->\n# CRITICAL VULNERABILITY ALERT: CVE-2024-38077 \n\nDate: 2026-08-20 Organization: Defense Cyber Agency Severity: CRITICAL Base Score: 9.8 \n\n# Overview: \n\nActive exploitation of CVE-2024-38077 affecting Windows Server 2019 and Windows Server 2022. Threat Actor: Volt Typhoon has been observed deploying webshells. \n\nObserved IOCs: \n\n- C2 IP: 198.51.100.120 \n\n- Malicious Hash: a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e \n\n- Domain: evil-c2-beacon.org \n\n- | Hostname | IP Address | Status | \n\n- | dc-srv-01 | 10.0.1.15 | Vulnerable | \n\n- | app-srv-02 | 10.0.2.22 | Patched |\n```\n",
+    "semantic_chunks": [
+      {
+        "chunk_id": 1,
+        "parent_section": "📋 Document Metadata",
+        "text": "### 📋 Document Metadata\n- **Format:** PDF 1.7\n\n---\n\n<!-- Page 1 -->",
+        "token_estimate": 16,
+        "char_length": 67
+      },
+      {
+        "chunk_id": 2,
+        "parent_section": "CRITICAL VULNERABILITY ALERT: CVE-2024-38077",
+        "text": "# CRITICAL VULNERABILITY ALERT: CVE-2024-38077 \n\nDate: 2026-08-20 Organization: Defense Cyber Agency Severity: CRITICAL Base Score: 9.8",
+        "token_estimate": 33,
+        "char_length": 135
+      },
+      {
+        "chunk_id": 3,
+        "parent_section": "Overview:",
+        "text": "# Overview: \n\nActive exploitation of CVE-2024-38077 affecting Windows Server 2019 and Windows Server 2022. Threat Actor: Volt Typhoon has been observed deploying webshells. \n\nObserved IOCs: \n\n- C2 IP: 198.51.100.120 \n\n- Malicious Hash: a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e \n\n- Domain: evil-c2-beacon.org \n\n- | Hostname | IP Address | Status | \n\n- | dc-srv-01 | 10.0.1.15 | Vulnerable | \n\n- | app-srv-02 | 10.0.2.22 | Patched |",
+        "token_estimate": 113,
+        "char_length": 454
+      }
+    ]
+  }
+}

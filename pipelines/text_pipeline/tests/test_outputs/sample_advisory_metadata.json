@@ -1,0 +1,183 @@
+{
+  "metadata": {
+    "file_name": "sample_advisory.md",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/text_pipeline/tests/samples/sample_advisory.md",
+    "file_type": "markdown",
+    "file_size_bytes": 3009,
+    "sha256_checksum": "8f9a2bcf0c7e2e0398fe5c49fec59285a5b3c4ff200e203591067bca5afefa5f",
+    "word_count": 371,
+    "character_count": 3008,
+    "estimated_tokens": 752,
+    "line_count": 54,
+    "detected_encoding": "utf-8",
+    "processed_at": "2026-09-11T19:09:12.549826+00:00"
+  },
+  "clean_markdown": "# NTRO CYBER THREAT ADVISORY: APT29 Exploitation of Windows Server\n\n**Advisory ID:** NTRO-ADV-2026-0881  \n**Published:** 2026-08-14T09:30:00Z  \n**Severity:** CRITICAL  \n**CVSS Base Score:** 9.8  \n\n## 1. Executive Summary\n\nA sophisticated cyber espionage campaign conducted by **APT29** (also known as Midnight Blizzard or Cozy Bear) has been observed actively exploiting a remote code execution vulnerability in **Windows Server 2022** and **Microsoft Exchange Server**. \n\nThe threat actor utilizes spear-phishing and legitimate compromised credentials to achieve initial access, executing arbitrary PowerShell payloads and establishing persistent Command and Control (C2) channels. Approximately 3,200 enterprise servers have been impacted across defense industrial bases.\n\n## 2. Technical Vulnerability Details\n\nThe primary vulnerability exploited in this campaign is tracked as **CVE-2024-38077** (Windows Remote Desktop Licensing Service Remote Code Execution) along with secondary privilege escalation via **CVE-2023-36884**.\n\n### CVE Impact & Assessment Matrix\n\n| CVE Identifier | CVSS Score | Affected Component | Exploit Status | Patch Availability |\n| :--- | :--- | :--- | :--- | :--- |\n| CVE-2024-38077 | 9.8 | Windows Remote Desktop Licensing | Actively Exploited (In the Wild) | KB5040437 Available |\n| CVE-2023-36884 | 8.8 | Office & Windows HTML Remote Code Execution | PoC Publicly Available | Patch Released |\n| CVE-2024-21410 | 9.8 | Microsoft Exchange Server NTLM Relay | Weaponized | Patch Released |\n\n## 3. MITRE ATT&CK Mapping\n\nThe threat actors mapped to the following tactics and techniques:\n- **T1190**: Exploit Public-Facing Application\n- **T1059.001**: Command and Scripting Interpreter: PowerShell\n- **T1078**: Valid Accounts\n- **T1027**: Obfuscated/Encrypted Files or Information\n- **T1071.001**: Application Layer Protocol: Web Protocols\n\n## 4. Indicators of Compromise (IOCs)\n\n### Network Indicators (IPv4 & C2 Domains)\n- Malicious C2 Server: `198.51.100.42`\n- Staging Proxy: `203.0.113.195`\n- Exfiltration Endpoint: `hxxps://telemetry[.]threat-actor-ops[.]net/payload`\n- Secondary C2 Domain: `ad-sync-service[.]com`\n- Backup Gateway: `192.0.2.77`\n\n### Host Artifacts (File Hashes)\n- `malicious_agent.dll` (SHA256): `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`\n- `powershell_loader.ps1` (SHA256): `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`\n- `backdoor_beacon.exe` (MD5): `5d41402abc4b2a76b9719d911017c592`\n\n## 5. Mitigation & Defensive Actions\n\n1. **Emergency Patching:** Immediately apply cumulative security update KB5040437 to all Windows Server domain controllers and licensing hosts.\n2. **Egress Filtering:** Block outbound network connections to `198.51.100.42`, `203.0.113.195`, and `*.threat-actor-ops.net`.\n3. **Credential Reset:** Force credential rotation for all privileged Active Directory service accounts.\n4. **Isolate Compromised Nodes:** Disconnect identified compromised endpoints from lateral enterprise networks.",
+  "iocs": {
+    "cves": [
+      "CVE-2023-36884",
+      "CVE-2024-21410",
+      "CVE-2024-38077"
+    ],
+    "ipv4_addresses": [
+      "192.0.2.77",
+      "198.51.100.42",
+      "203.0.113.195"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ],
+    "sha1_hashes": [],
+    "md5_hashes": [
+      "5d41402abc4b2a76b9719d911017c592"
+    ],
+    "domains": [
+      "ad-sync-service.com",
+      "telemetry.threat-actor-ops.net",
+      "threat-actor-ops.net"
+    ],
+    "urls": [
+      "https://telemetry.threat-actor-ops.net/payload"
+    ],
+    "mitre_attack_ids": [
+      "T1027",
+      "T1059.001",
+      "T1071.001",
+      "T1078",
+      "T1190"
+    ],
+    "total_iocs_found": 18
+  },
+  "tables": [
+    {
+      "table_index": 1,
+      "headers": [
+        "CVE Identifier",
+        "CVSS Score",
+        "Affected Component",
+        "Exploit Status",
+        "Patch Availability"
+      ],
+      "rows": [
+        [
+          "CVE-2024-38077",
+          "9.8",
+          "Windows Remote Desktop Licensing",
+          "Actively Exploited (In the Wild)",
+          "KB5040437 Available"
+        ],
+        [
+          "CVE-2023-36884",
+          "8.8",
+          "Office & Windows HTML Remote Code Execution",
+          "PoC Publicly Available",
+          "Patch Released"
+        ],
+        [
+          "CVE-2024-21410",
+          "9.8",
+          "Microsoft Exchange Server NTLM Relay",
+          "Weaponized",
+          "Patch Released"
+        ]
+      ],
+      "markdown_representation": "| CVE Identifier | CVSS Score | Affected Component | Exploit Status | Patch Availability |\n| :--- | :--- | :--- | :--- | :--- |\n| CVE-2024-38077 | 9.8 | Windows Remote Desktop Licensing | Actively Exploited (In the Wild) | KB5040437 Available |\n| CVE-2023-36884 | 8.8 | Office & Windows HTML Remote Code Execution | PoC Publicly Available | Patch Released |\n| CVE-2024-21410 | 9.8 | Microsoft Exchange Server NTLM Relay | Weaponized | Patch Released |",
+      "row_count": 3,
+      "column_count": 5
+    }
+  ],
+  "threat_intel": {
+    "threat_actors": [
+      "APT29",
+      "Cozy Bear",
+      "Midnight Blizzard"
+    ],
+    "affected_systems": [
+      "Active Directory",
+      "Microsoft Exchange Server",
+      "Windows Server",
+      "Windows Server 2022"
+    ],
+    "severity_keywords": [
+      "CRITICAL"
+    ],
+    "cvss_scores": [
+      9.8,
+      8.8
+    ],
+    "timelines": [
+      "2026-08-14T09:30:00Z"
+    ]
+  },
+  "llm_bundle": {
+    "system_grounding_header": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_advisory.md (MARKDOWN)\nDOCUMENT_SHA256: 8f9a2bcf0c7e2e0398fe5c49fec59285a5b3c4ff200e203591067bca5afefa5f\nWORD_COUNT: 371 | ESTIMATED_TOKENS: 752\n\nDETECTED_SEVERITY: CRITICAL\nCVSS_SCORES: 9.8, 8.8\nIDENTIFIED_THREAT_ACTORS: APT29, Cozy Bear, Midnight Blizzard\nAFFECTED_SYSTEMS: Active Directory, Microsoft Exchange Server, Windows Server, Windows Server 2022\nDETECTED_TIMELINES: 2026-08-14T09:30:00Z\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2023-36884, CVE-2024-21410, CVE-2024-38077\nMITRE_ATTACK_TECHNIQUES: T1027, T1059.001, T1071.001, T1078, T1190\nIPV4_INDICATORS: 192.0.2.77, 198.51.100.42, 203.0.113.195\nIPV6_INDICATORS: None identified\nSHA256_HASHES: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945, e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nSHA1_HASHES: None identified\nMD5_HASHES: 5d41402abc4b2a76b9719d911017c592\nDOMAINS: ad-sync-service.com, telemetry.threat-actor-ops.net, threat-actor-ops.net\nURLS: https://telemetry.threat-actor-ops.net/payload\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: CVE Identifier, CVSS Score, Affected Component, Exploit Status, Patch Availability (3 rows)\n================================================================================",
+    "formatted_context_for_prompt": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_advisory.md (MARKDOWN)\nDOCUMENT_SHA256: 8f9a2bcf0c7e2e0398fe5c49fec59285a5b3c4ff200e203591067bca5afefa5f\nWORD_COUNT: 371 | ESTIMATED_TOKENS: 752\n\nDETECTED_SEVERITY: CRITICAL\nCVSS_SCORES: 9.8, 8.8\nIDENTIFIED_THREAT_ACTORS: APT29, Cozy Bear, Midnight Blizzard\nAFFECTED_SYSTEMS: Active Directory, Microsoft Exchange Server, Windows Server, Windows Server 2022\nDETECTED_TIMELINES: 2026-08-14T09:30:00Z\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2023-36884, CVE-2024-21410, CVE-2024-38077\nMITRE_ATTACK_TECHNIQUES: T1027, T1059.001, T1071.001, T1078, T1190\nIPV4_INDICATORS: 192.0.2.77, 198.51.100.42, 203.0.113.195\nIPV6_INDICATORS: None identified\nSHA256_HASHES: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945, e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nSHA1_HASHES: None identified\nMD5_HASHES: 5d41402abc4b2a76b9719d911017c592\nDOMAINS: ad-sync-service.com, telemetry.threat-actor-ops.net, threat-actor-ops.net\nURLS: https://telemetry.threat-actor-ops.net/payload\n\n--- EXTRACTED TABLES (1 table(s) parsed) ---\n[Table 1] Headers: CVE Identifier, CVSS Score, Affected Component, Exploit Status, Patch Availability (3 rows)\n================================================================================\n\n### FULL NORMALIZED DOCUMENT BODY\n\n```markdown\n# NTRO CYBER THREAT ADVISORY: APT29 Exploitation of Windows Server\n\n**Advisory ID:** NTRO-ADV-2026-0881  \n**Published:** 2026-08-14T09:30:00Z  \n**Severity:** CRITICAL  \n**CVSS Base Score:** 9.8  \n\n## 1. Executive Summary\n\nA sophisticated cyber espionage campaign conducted by **APT29** (also known as Midnight Blizzard or Cozy Bear) has been observed actively exploiting a remote code execution vulnerability in **Windows Server 2022** and **Microsoft Exchange Server**. \n\nThe threat actor utilizes spear-phishing and legitimate compromised credentials to achieve initial access, executing arbitrary PowerShell payloads and establishing persistent Command and Control (C2) channels. Approximately 3,200 enterprise servers have been impacted across defense industrial bases.\n\n## 2. Technical Vulnerability Details\n\nThe primary vulnerability exploited in this campaign is tracked as **CVE-2024-38077** (Windows Remote Desktop Licensing Service Remote Code Execution) along with secondary privilege escalation via **CVE-2023-36884**.\n\n### CVE Impact & Assessment Matrix\n\n| CVE Identifier | CVSS Score | Affected Component | Exploit Status | Patch Availability |\n| :--- | :--- | :--- | :--- | :--- |\n| CVE-2024-38077 | 9.8 | Windows Remote Desktop Licensing | Actively Exploited (In the Wild) | KB5040437 Available |\n| CVE-2023-36884 | 8.8 | Office & Windows HTML Remote Code Execution | PoC Publicly Available | Patch Released |\n| CVE-2024-21410 | 9.8 | Microsoft Exchange Server NTLM Relay | Weaponized | Patch Released |\n\n## 3. MITRE ATT&CK Mapping\n\nThe threat actors mapped to the following tactics and techniques:\n- **T1190**: Exploit Public-Facing Application\n- **T1059.001**: Command and Scripting Interpreter: PowerShell\n- **T1078**: Valid Accounts\n- **T1027**: Obfuscated/Encrypted Files or Information\n- **T1071.001**: Application Layer Protocol: Web Protocols\n\n## 4. Indicators of Compromise (IOCs)\n\n### Network Indicators (IPv4 & C2 Domains)\n- Malicious C2 Server: `198.51.100.42`\n- Staging Proxy: `203.0.113.195`\n- Exfiltration Endpoint: `hxxps://telemetry[.]threat-actor-ops[.]net/payload`\n- Secondary C2 Domain: `ad-sync-service[.]com`\n- Backup Gateway: `192.0.2.77`\n\n### Host Artifacts (File Hashes)\n- `malicious_agent.dll` (SHA256): `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`\n- `powershell_loader.ps1` (SHA256): `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`\n- `backdoor_beacon.exe` (MD5): `5d41402abc4b2a76b9719d911017c592`\n\n## 5. Mitigation & Defensive Actions\n\n1. **Emergency Patching:** Immediately apply cumulative security update KB5040437 to all Windows Server domain controllers and licensing hosts.\n2. **Egress Filtering:** Block outbound network connections to `198.51.100.42`, `203.0.113.195`, and `*.threat-actor-ops.net`.\n3. **Credential Reset:** Force credential rotation for all privileged Active Directory service accounts.\n4. **Isolate Compromised Nodes:** Disconnect identified compromised endpoints from lateral enterprise networks.\n```\n",
+    "semantic_chunks": [
+      {
+        "chunk_id": 1,
+        "parent_section": "NTRO CYBER THREAT ADVISORY: APT29 Exploitation of Windows Server",
+        "text": "# NTRO CYBER THREAT ADVISORY: APT29 Exploitation of Windows Server\n\n**Advisory ID:** NTRO-ADV-2026-0881  \n**Published:** 2026-08-14T09:30:00Z  \n**Severity:** CRITICAL  \n**CVSS Base Score:** 9.8",
+        "token_estimate": 48,
+        "char_length": 193
+      },
+      {
+        "chunk_id": 2,
+        "parent_section": "1. Executive Summary",
+        "text": "## 1. Executive Summary\n\nA sophisticated cyber espionage campaign conducted by **APT29** (also known as Midnight Blizzard or Cozy Bear) has been observed actively exploiting a remote code execution vulnerability in **Windows Server 2022** and **Microsoft Exchange Server**. \n\nThe threat actor utilizes spear-phishing and legitimate compromised credentials to achieve initial access, executing arbitrary PowerShell payloads and establishing persistent Command and Control (C2) channels. Approximately 3,200 enterprise servers have been impacted across defense industrial bases.",
+        "token_estimate": 144,
+        "char_length": 576
+      },
+      {
+        "chunk_id": 3,
+        "parent_section": "2. Technical Vulnerability Details",
+        "text": "## 2. Technical Vulnerability Details\n\nThe primary vulnerability exploited in this campaign is tracked as **CVE-2024-38077** (Windows Remote Desktop Licensing Service Remote Code Execution) along with secondary privilege escalation via **CVE-2023-36884**.",
+        "token_estimate": 63,
+        "char_length": 255
+      },
+      {
+        "chunk_id": 4,
+        "parent_section": "CVE Impact & Assessment Matrix",
+        "text": "### CVE Impact & Assessment Matrix\n\n| CVE Identifier | CVSS Score | Affected Component | Exploit Status | Patch Availability |\n| :--- | :--- | :--- | :--- | :--- |\n| CVE-2024-38077 | 9.8 | Windows Remote Desktop Licensing | Actively Exploited (In the Wild) | KB5040437 Available |\n| CVE-2023-36884 | 8.8 | Office & Windows HTML Remote Code Execution | PoC Publicly Available | Patch Released |\n| CVE-2024-21410 | 9.8 | Microsoft Exchange Server NTLM Relay | Weaponized | Patch Released |",
+        "token_estimate": 121,
+        "char_length": 487
+      },
+      {
+        "chunk_id": 5,
+        "parent_section": "3. MITRE ATT&CK Mapping",
+        "text": "## 3. MITRE ATT&CK Mapping\n\nThe threat actors mapped to the following tactics and techniques:\n- **T1190**: Exploit Public-Facing Application\n- **T1059.001**: Command and Scripting Interpreter: PowerShell\n- **T1078**: Valid Accounts\n- **T1027**: Obfuscated/Encrypted Files or Information\n- **T1071.001**: Application Layer Protocol: Web Protocols",
+        "token_estimate": 86,
+        "char_length": 345
+      },
+      {
+        "chunk_id": 6,
+        "parent_section": "4. Indicators of Compromise (IOCs)",
+        "text": "## 4. Indicators of Compromise (IOCs)",
+        "token_estimate": 9,
+        "char_length": 37
+      },
+      {
+        "chunk_id": 7,
+        "parent_section": "Network Indicators (IPv4 & C2 Domains)",
+        "text": "### Network Indicators (IPv4 & C2 Domains)\n- Malicious C2 Server: `198.51.100.42`\n- Staging Proxy: `203.0.113.195`\n- Exfiltration Endpoint: `hxxps://telemetry[.]threat-actor-ops[.]net/payload`\n- Secondary C2 Domain: `ad-sync-service[.]com`\n- Backup Gateway: `192.0.2.77`",
+        "token_estimate": 67,
+        "char_length": 270
+      },
+      {
+        "chunk_id": 8,
+        "parent_section": "Host Artifacts (File Hashes)",
+        "text": "### Host Artifacts (File Hashes)\n- `malicious_agent.dll` (SHA256): `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`\n- `powershell_loader.ps1` (SHA256): `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`\n- `backdoor_beacon.exe` (MD5): `5d41402abc4b2a76b9719d911017c592`",
+        "token_estimate": 75,
+        "char_length": 302
+      },
+      {
+        "chunk_id": 9,
+        "parent_section": "5. Mitigation & Defensive Actions",
+        "text": "## 5. Mitigation & Defensive Actions\n\n1. **Emergency Patching:** Immediately apply cumulative security update KB5040437 to all Windows Server domain controllers and licensing hosts.\n2. **Egress Filtering:** Block outbound network connections to `198.51.100.42`, `203.0.113.195`, and `*.threat-actor-ops.net`.\n3. **Credential Reset:** Force credential rotation for all privileged Active Directory service accounts.\n4. **Isolate Compromised Nodes:** Disconnect identified compromised endpoints from lateral enterprise networks.",
+        "token_estimate": 131,
+        "char_length": 525
+      }
+    ]
+  }
+}

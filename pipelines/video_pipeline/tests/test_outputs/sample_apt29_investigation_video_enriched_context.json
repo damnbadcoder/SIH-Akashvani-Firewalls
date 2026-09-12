@@ -1,0 +1,50 @@
+{
+  "title": "Video Intelligence Briefing: CVE-2023-38831, CVE-2024-21413 (sample_apt29_investigation.mp4)",
+  "executive_overview": "Multimodal intelligence analysis of sample_apt29_investigation.mp4 spanning 16.0 seconds across 4 scenes.",
+  "minto_pyramid": {
+    "situation": "Enterprise infrastructure monitored during security briefing.",
+    "complication": "Vulnerability demonstration involving CVE-2023-38831, CVE-2024-21413.",
+    "solution": "Apply patches and block identified indicators of compromise.",
+    "business_impact_and_risk": "Risk of lateral movement and operational downtime."
+  },
+  "technical_root_cause": "Exploitation of vulnerabilities demonstrated in video session.",
+  "timeline_of_events": [
+    "Scene 1 [00:00 - 00:05]: Presentation slide covering: CYBER THREAT ADVISORY: APT29 COZY BEAR",
+    "Scene 2 [00:05 - 00:09]: System architecture diagram illustrating network topology and threat pathways.",
+    "Scene 3 [00:09 - 00:13]: Active command-line console session displaying terminal execution logs.",
+    "Scene 4 [00:13 - 00:16]: Presentation slide covering: INCIDENT CONTAINMENT & REMEDIATION PLAN"
+  ],
+  "locked_numerical_facts": [
+    "Video duration: 16.0 seconds",
+    "Detected 4 distinct visual scenes"
+  ],
+  "actionable_mitigations": [
+    "Deploy vendor security updates",
+    "Monitor perimeter logs for identified C2 IPs"
+  ],
+  "indicators_of_compromise": {
+    "cves": [
+      "CVE-2023-38831",
+      "CVE-2024-21413"
+    ],
+    "ipv4_addresses": [
+      "192.168.1.105",
+      "203.0.113.195"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ],
+    "md5_hashes": [],
+    "domains": [
+      "apt29-c2.net"
+    ],
+    "urls": [
+      "https://apt29-c2.net/payload.bin"
+    ],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 7
+  },
+  "interpreted_by_model": "heuristic-video-anchor",
+  "generated_at": "2026-09-10T13:44:59.905593+00:00"
+}

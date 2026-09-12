@@ -1,0 +1,63 @@
+{
+  "metadata": {
+    "file_name": "sample_incident_triage.txt",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/text_pipeline/tests/samples/sample_incident_triage.txt",
+    "file_type": "text",
+    "file_size_bytes": 724,
+    "sha256_checksum": "70dd945002f8fbca7fe28400f90a360e00f11d1e0be343189ca2ba404edb54a6",
+    "word_count": 85,
+    "character_count": 723,
+    "estimated_tokens": 180,
+    "line_count": 13,
+    "detected_encoding": "utf-8",
+    "processed_at": "2026-09-11T19:09:12.688728+00:00"
+  },
+  "clean_markdown": "INCIDENT TRIAGE LOG - CONFIDENTIAL DEFENSE SECTOR\nDate: 2026-09-02 14:15 UTC\nAnalyst: SOC Lead Alpha\nIncident Priority: HIGH\n\n14:15 UTC: Multiple alerts triggered by endpoint detection on perimeter jump box.\n14:22 UTC: Unauthorized PowerShell execution detected with encoded parameters.\n14:35 UTC: Host attempting outbound beaconing to 198.51.100.89 on port 443.\n14:48 UTC: Malicious dropper binary isolated with SHA256: 8f434346648f6b96df89dda901c5176b10e6d0ceec3e4a14e310b73399b358b0\n15:02 UTC: Attacker leveraged CVE-2024-21410 targeting Microsoft Exchange Server.\n15:15 UTC: Secondary connection established with malicious domain bad-relay-dns.net.\n15:30 UTC: Host quarantined. Forensics initiated.\nMitigation underway.",
+  "iocs": {
+    "cves": [
+      "CVE-2024-21410"
+    ],
+    "ipv4_addresses": [
+      "198.51.100.89"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "8f434346648f6b96df89dda901c5176b10e6d0ceec3e4a14e310b73399b358b0"
+    ],
+    "sha1_hashes": [],
+    "md5_hashes": [],
+    "domains": [
+      "bad-relay-dns.net"
+    ],
+    "urls": [],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 4
+  },
+  "tables": [],
+  "threat_intel": {
+    "threat_actors": [],
+    "affected_systems": [
+      "Microsoft Exchange Server"
+    ],
+    "severity_keywords": [
+      "HIGH"
+    ],
+    "cvss_scores": [],
+    "timelines": [
+      "2026-09-02 14:15"
+    ]
+  },
+  "llm_bundle": {
+    "system_grounding_header": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_incident_triage.txt (TEXT)\nDOCUMENT_SHA256: 70dd945002f8fbca7fe28400f90a360e00f11d1e0be343189ca2ba404edb54a6\nWORD_COUNT: 85 | ESTIMATED_TOKENS: 180\n\nDETECTED_SEVERITY: HIGH\nAFFECTED_SYSTEMS: Microsoft Exchange Server\nDETECTED_TIMELINES: 2026-09-02 14:15\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2024-21410\nMITRE_ATTACK_TECHNIQUES: None identified\nIPV4_INDICATORS: 198.51.100.89\nIPV6_INDICATORS: None identified\nSHA256_HASHES: 8f434346648f6b96df89dda901c5176b10e6d0ceec3e4a14e310b73399b358b0\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: bad-relay-dns.net\nURLS: None identified\n================================================================================",
+    "formatted_context_for_prompt": "================================================================================\nIMMUTABLE SOURCE TELEMETRY & GROUNDING ANCHOR (PRE-EXTRACTED ZERO-LOSS CONTEXT)\n================================================================================\nSOURCE_DOCUMENT: sample_incident_triage.txt (TEXT)\nDOCUMENT_SHA256: 70dd945002f8fbca7fe28400f90a360e00f11d1e0be343189ca2ba404edb54a6\nWORD_COUNT: 85 | ESTIMATED_TOKENS: 180\n\nDETECTED_SEVERITY: HIGH\nAFFECTED_SYSTEMS: Microsoft Exchange Server\nDETECTED_TIMELINES: 2026-09-02 14:15\n\n--- EXTRACTED DETERMINISTIC INDICATORS (IOCs) ---\nCVE_IDS: CVE-2024-21410\nMITRE_ATTACK_TECHNIQUES: None identified\nIPV4_INDICATORS: 198.51.100.89\nIPV6_INDICATORS: None identified\nSHA256_HASHES: 8f434346648f6b96df89dda901c5176b10e6d0ceec3e4a14e310b73399b358b0\nSHA1_HASHES: None identified\nMD5_HASHES: None identified\nDOMAINS: bad-relay-dns.net\nURLS: None identified\n================================================================================\n\n### FULL NORMALIZED DOCUMENT BODY\n\n```markdown\nINCIDENT TRIAGE LOG - CONFIDENTIAL DEFENSE SECTOR\nDate: 2026-09-02 14:15 UTC\nAnalyst: SOC Lead Alpha\nIncident Priority: HIGH\n\n14:15 UTC: Multiple alerts triggered by endpoint detection on perimeter jump box.\n14:22 UTC: Unauthorized PowerShell execution detected with encoded parameters.\n14:35 UTC: Host attempting outbound beaconing to 198.51.100.89 on port 443.\n14:48 UTC: Malicious dropper binary isolated with SHA256: 8f434346648f6b96df89dda901c5176b10e6d0ceec3e4a14e310b73399b358b0\n15:02 UTC: Attacker leveraged CVE-2024-21410 targeting Microsoft Exchange Server.\n15:15 UTC: Secondary connection established with malicious domain bad-relay-dns.net.\n15:30 UTC: Host quarantined. Forensics initiated.\nMitigation underway.\n```\n",
+    "semantic_chunks": [
+      {
+        "chunk_id": 1,
+        "parent_section": "Document Root",
+        "text": "INCIDENT TRIAGE LOG - CONFIDENTIAL DEFENSE SECTOR\nDate: 2026-09-02 14:15 UTC\nAnalyst: SOC Lead Alpha\nIncident Priority: HIGH\n\n14:15 UTC: Multiple alerts triggered by endpoint detection on perimeter jump box.\n14:22 UTC: Unauthorized PowerShell execution detected with encoded parameters.\n14:35 UTC: Host attempting outbound beaconing to 198.51.100.89 on port 443.\n14:48 UTC: Malicious dropper binary isolated with SHA256: 8f434346648f6b96df89dda901c5176b10e6d0ceec3e4a14e310b73399b358b0\n15:02 UTC: Attacker leveraged CVE-2024-21410 targeting Microsoft Exchange Server.\n15:15 UTC: Secondary connection established with malicious domain bad-relay-dns.net.\n15:30 UTC: Host quarantined. Forensics initiated.\nMitigation underway.",
+        "token_estimate": 180,
+        "char_length": 723
+      }
+    ]
+  }
+}

