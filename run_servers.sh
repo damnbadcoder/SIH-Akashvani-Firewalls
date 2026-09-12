@@ -20,19 +20,21 @@ echo " Backend:  http://localhost:8000"
 echo " Frontend: http://localhost:5173"
 echo "=================================================="
 
-# Ensure backend finds common package environment
-SNAP_PY_PACKAGES="/home/samyakjain/snap/antigravity-cli/common/local/lib/python3.12/dist-packages"
-SNAP_PY_SITE="/home/samyakjain/snap/antigravity-cli/common/local/lib/python3.12/site-packages"
-if [ -d "$SNAP_PY_PACKAGES" ]; then
-    export PYTHONPATH="$SNAP_PY_SITE:$SNAP_PY_PACKAGES:$PYTHONPATH"
+# Locate project virtual environment python
+if [ -f "$ROOT_DIR/.venv/bin/python" ]; then
+    PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
+elif command -v uv >/dev/null 2>&1; then
+    PYTHON_BIN="uv run python"
+else
+    PYTHON_BIN="python3"
 fi
 
 # Start backend if not already active
-if python3 -c "import socket; s = socket.socket(); s.settimeout(0.5); exit(0 if s.connect_ex(('127.0.0.1', 8000)) == 0 else 1)" 2>/dev/null; then
+if $PYTHON_BIN -c "import socket; s = socket.socket(); s.settimeout(0.5); exit(0 if s.connect_ex(('127.0.0.1', 8000)) == 0 else 1)" 2>/dev/null; then
     echo "[*] Backend is already running on http://localhost:8000"
 else
     echo "[*] Starting backend synthesis server on port 8000..."
-    python3 server.py &
+    $PYTHON_BIN server.py &
 fi
 
 # Start frontend

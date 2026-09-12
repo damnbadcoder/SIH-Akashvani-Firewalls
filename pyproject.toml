@@ -1,0 +1,48 @@
+[project]
+name = "sih-current"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "SubhamJM", email = "subhamjyotimaharana@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13.0",
+    "distro>=1.9.0",
+    "fastapi>=0.141.1",
+    "faster-whisper>=1.0.0",
+    "google-genai>=2.0.0",
+    "groq>=0.9.0",
+    "httpx>=0.28.0",
+    "imagehash>=4.3.1",
+    "langchain-core>=0.3.0",
+    "langchain-groq>=0.2.0",
+    "opencv-python-headless>=4.9.0",
+    "openpyxl>=3.1.0",
+    "pillow>=10.0.0",
+    "psycopg2-binary>=2.9.9",
+    "pyahocorasick>=2.1.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.15.0",
+    "pymupdf>=1.24.0",
+    "pymupdf4llm>=0.0.17",
+    "pytesseract>=0.3.10",
+    "pytest>=8.0.0",
+    "python-docx>=1.1.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.9",
+    "python-pptx>=1.0.0",
+    "pyyaml>=6.0.1",
+    "scenedetect>=0.6.4",
+    "sqlalchemy>=2.0.52",
+    "tabulate>=0.9.0",
+    "uvicorn>=0.52.4",
+]
+
+[project.scripts]
+sih-current = "sih_current:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
