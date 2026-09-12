@@ -264,17 +264,19 @@ function buildFormatBlueprint(
 
 ### Section 2: Threat Overview & Timeline
 - Threat actor campaign timeline and targeted subnets [^src-1].
-- Chronological breakdown from initial ingress to perimeter quarantine.
+- Chronological breakdown from initial ingress to perimeter quarantine [^src-2].
 
 ### Section 3: Technical Analysis & Attack Mechanics
-- Step-by-step dissection of the exploit chain and privilege escalation.
-- MITRE ATT&CK technique mappings (Initial Access, Persistence, Defense Evasion).
+- Step-by-step dissection of the exploit chain and privilege escalation [^src-1].
+- MITRE ATT&CK technique mappings (Initial Access, Persistence, Defense Evasion) [^src-2].
 
 ### Section 4: Indicators of Compromise (IOCs)
 - Structured indicator table: IPv4 addresses, domain endpoints, and SHA-256 hashes [^src-2].
+- Verified telemetry observables and forensic attributes [^src-1].
 
 ### Section 5: Actionable Containment & Mitigations
-- Prioritized remediation instructions for SOC engineers, network admins, and CERT responders.
+- Prioritized remediation instructions for SOC engineers, network admins, and CERT responders [^src-1].
+- Emergency patching protocols and credential invalidation checklists [^src-2].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -289,18 +291,19 @@ function buildFormatBlueprint(
 
 ### 1. Situation (Operational Baseline)
 - High-level operational overview & threat context ("${snippet}") [^src-1].
-- Critical business operations and digital asset dependencies.
+- Critical business operations and digital asset dependencies [^src-2].
 
 ### 2. Complication (Threat Event & Exposure)
-- What triggered the alert: Threat vector exploiting infrastructure perimeter.
-- Quantified business risk: Potential downtime, regulatory notification obligations, and brand impact.
+- What triggered the alert: Threat vector exploiting infrastructure perimeter [^src-1].
+- Quantified business risk: Potential downtime, regulatory notification obligations, and brand impact [^src-2].
 
 ### 3. Solution (Containment Authorizations)
-- Actions taken by the Security Operations Center to quarantine the intrusion.
-- Clear, immediate sign-offs requested from executive leadership.
+- Actions taken by the Security Operations Center to quarantine the intrusion [^src-1].
+- Clear, immediate sign-offs requested from executive leadership [^src-2].
 
 ### 4. Strategic Recommendations & Budget Allocation
-- Capital and tooling investments to harden defense posture against repeat campaigns.
+- Capital and tooling investments to harden defense posture against repeat campaigns [^src-1].
+- Alignment with national cybersecurity baselines and incident reporting directives [^src-2].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -315,17 +318,19 @@ function buildFormatBlueprint(
 
 ### Section 1: Incident Telemetry & Chronology (UTC)
 - Timeline reconstruction with exact timestamps (UTC) [^src-1].
-- Initial anomalous ingress and lateral movement checkpoints.
+- Initial anomalous ingress and lateral movement checkpoints [^src-2].
 
 ### Section 2: Root Cause & Exploitation Analysis
 - Telemetry analysis based on: "${snippet}" [^src-1].
-- Identification of vulnerable software version and injection vector.
+- Identification of vulnerable software version and injection vector [^src-2].
 
 ### Section 3: Blast Radius & Affected Systems
-- Scope of affected hosts, services, and credentials inspected by IR team.
+- Scope of affected hosts, services, and credentials inspected by IR team [^src-1].
+- Boundary containment verification across internal network zones [^src-2].
 
 ### Section 4: Remediation & Forensic Checklist
-- Immediate containment status and continuous telemetry verification audits.
+- Immediate containment status and continuous telemetry verification audits [^src-1].
+- Forensic integrity hash validation and credential rotation signoff [^src-2].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -339,21 +344,23 @@ function buildFormatBlueprint(
 ---
 
 ### Tweet 1: The Urgent Hook
-- 🧵 **THREAT ALERT:** Breaking intelligence on enterprise infrastructure exploit.
+- 🧵 **THREAT ALERT:** Breaking intelligence on enterprise infrastructure exploit [^src-1].
 - Urgent threat summary & alert banner: "${snippet}" [^src-1].
 
 ### Tweet 2: Exploit Vector Analysis
-- High-level breakdown of the vulnerability without jargon overload.
-- Mechanism of compromise and perimeter bypass technique.
+- High-level breakdown of the vulnerability without jargon overload [^src-1].
+- Mechanism of compromise and perimeter bypass technique [^src-2].
 
 ### Tweet 3: Key Indicators (IOCs)
 - Key indicators security teams can check immediately (C2 IPs, stager hashes) [^src-2].
+- Affected controller versions and ingress ports [^src-1].
 
 ### Tweet 4: Defense Steps
-- 3 actionable takeaway steps for sysadmins: isolate, patch, rotate.
+- 3 actionable takeaway steps for sysadmins: isolate, patch, rotate [^src-1].
+- Zero-trust access controls on management interfaces [^src-2].
 
 ### Tweet 5: Official Link & Community Wrap-up
-- Official advisory link, CERT coordination, and #CyberSecurity #ThreatIntel #InfoSec.
+- Official advisory link, CERT coordination, and #CyberSecurity #ThreatIntel #InfoSec [^src-1].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -368,23 +375,23 @@ function buildFormatBlueprint(
 ---
 
 ### 1. Headline Hook
-- Connected and autonomous vehicles represent an expanding critical attack surface — and legacy security frameworks are insufficient [^src-1].
-- Framing the strategic urgency for CISOs, vehicle architects, and infrastructure security teams.
+- Connected and autonomous systems represent an expanding critical attack surface — and legacy security frameworks are insufficient [^src-1].
+- Framing the strategic urgency for CISOs, architects, and infrastructure security teams [^src-2].
 
 ### 2. Threat Analysis & Key Insights
 - **The Threat Context:** ${isAuto ? "CERT-In SAMVAAD 2025: Unveiling of the Automotive Cybersecurity Guidelines & Framework addressing in-vehicle networks and connected mobility ecosystems." : `Operational briefing grounded in source telemetry: "${snippet}".`} [^src-1]
-- **Impact Radius:** In-vehicle communication networks, ECU bus architectures, and automotive firmware supply chains.
+- **Impact Radius:** In-vehicle communication networks, ECU bus architectures, and firmware supply chains [^src-2].
 - **Actionable Takeaways:**
-  1. Audit internal vehicle network communication protocols and implement cryptographic message authentication [^src-1].
-  2. Implement dedicated telematics anomaly detection aligned with national cybersecurity standards [^src-1].
+  1. Audit internal network communication protocols and implement cryptographic message authentication [^src-1].
+  2. Implement dedicated telematics anomaly detection aligned with national cybersecurity standards [^src-2].
   3. Engage with certified security auditing organizations to conduct comprehensive architectural risk reviews [^src-1].
 
 ### 3. Why This Matters for Leaders
-- In-vehicle network isolation prevents remote lateral movement across vehicle control domains.
-- Zero-trust architecture must extend from cloud backends directly to hardware edge controllers.
+- Network isolation prevents remote lateral movement across critical control domains [^src-1].
+- Zero-trust architecture must extend from cloud backends directly to hardware edge controllers [^src-2].
 
 ### 4. Discussion Prompt & Hashtags
-- How is your engineering organization adapting vehicle ECU architectures to meet emerging CERT-In cybersecurity standards?
+- How is your engineering organization adapting architecture to meet emerging CERT-In cybersecurity standards?
 - #CyberSecurity #AutomotiveSecurity #CERTIn #CISO #ConnectedVehicles #DevSecOps
 
 ---
@@ -401,15 +408,19 @@ function buildFormatBlueprint(
 
 ### Section 1: Official Statement of Detection
 - Clear, reassuring public announcement of detected activity and rapid intervention [^src-1].
+- Immediate containment confirmation across regional infrastructure [^src-2].
 
 ### Section 2: Customer Impact Statement
-- Explicit confirmation regarding user data protection and safety.
+- Explicit confirmation regarding user data protection and safety [^src-1].
+- Zero evidence of account tampering or service disruption [^src-2].
 
 ### Section 3: Proactive Protections Applied
-- Measures taken by engineering to secure the ecosystem and collaborate with CERT authorities.
+- Measures taken by engineering to secure the ecosystem and collaborate with CERT authorities [^src-1].
+- Rapid deployment of firewall blocklists and patch verification [^src-2].
 
 ### Section 4: Safe Practices for Consumers
-- Safe practices for end-users and official PR media contact details.
+- Safe practices for end-users and official PR media contact details [^src-1].
+- Ongoing coordination with national cyber defense agencies [^src-2].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -423,24 +434,28 @@ function buildFormatBlueprint(
 ---
 
 ### Slide 1: Executive Overview (TITLE_SLIDE)
-- **Title:** Incident Briefing & Threat Defense Strategy
+- **Title:** Incident Briefing & Threat Defense Strategy [^src-1]
 - **Key Points:**
   - Brief summary: "${snippet}" [^src-1]
-  - Immediate defensive response posture & rapid containment confirmation
-- *Speaker Note:* Welcome stakeholders; set reassuring tone highlighting rapid containment.
+  - Immediate defensive response posture & rapid containment confirmation [^src-2]
+- *Speaker Note:* Welcome stakeholders; set reassuring tone highlighting rapid containment [^src-1].
 
 ### Slide 2: Threat Landscape & Vector Analysis (TWO_COLUMN)
-- **Title:** Anatomy of the Exploit
-- **Left Column:** Technical payload and CVE mapping
-- **Right Column:** Perimeter bypass telemetry and MITRE ATT&CK Matrix mapping
+- **Title:** Anatomy of the Exploit [^src-1]
+- **Left Column:** Technical payload and CVE mapping [^src-1]
+- **Right Column:** Perimeter bypass telemetry and MITRE ATT&CK Matrix mapping [^src-2]
+- *Speaker Note:* Review attack telemetry and initial ingress vector [^src-1].
 
 ### Slide 3: Roadmap to Zero-Trust Hardening (TIMELINE)
-- **Title:** Remediation Timeline & Hardening
-- 3 key phases: Isolation, Patching, and Credential Rotation
+- **Title:** Remediation Timeline & Hardening [^src-1]
+- Phase 1: Immediate network isolation and credential rotation [^src-1]
+- Phase 2: Patch deployment and forensic telemetry verification [^src-2]
+- Phase 3: Long-term architectural segmentation and audit compliance [^src-1]
 
 ### Slide 4: Strategic Recommendations (CONCLUSION)
-- **Title:** Future-Proofing Security Posture
-- Tooling upgrades, budget allocation, and executive approvals needed.
+- **Title:** Future-Proofing Security Posture [^src-1]
+- Tooling upgrades, budget allocation, and executive approvals needed [^src-1]
+- Formal alignment with national cyber agency reporting standards [^src-2]
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -454,20 +469,20 @@ function buildFormatBlueprint(
 ---
 
 ### Scene 1 (0:00 - 0:15): Threat Alert Hook
-- **Visual:** Global threat map animation with flashing alert nodes.
-- **Narrator (VO):** "Security telemetry has detected an active campaign targeting enterprise infrastructure. Here is your situational briefing."
+- **Visual:** Global threat map animation with flashing alert nodes [^src-1].
+- **Narrator (VO):** "Security telemetry has detected an active campaign targeting enterprise infrastructure [^src-1]. Here is your situational briefing."
 
 ### Scene 2 (0:15 - 0:45): Technical Breakdown
 - **Visual:** Exploit sequence animation explaining: "${snippet}" [^src-1].
-- **Narrator (VO):** "Attackers weaponized deserialization zero-days to achieve unauthenticated remote code execution."
+- **Narrator (VO):** "Attackers weaponized deserialization zero-days to achieve unauthenticated remote code execution [^src-2]."
 
 ### Scene 3 (0:45 - 1:15): Defense Directives
-- **Visual:** 3 bold checkmarks on screen with clear actionable mitigation steps.
-- **Narrator (VO):** "Your immediate priorities: block known malicious C2 IP addresses, inspect gateway authorization logs, and apply emergency patches."
+- **Visual:** 3 bold checkmarks on screen with clear actionable mitigation steps [^src-2].
+- **Narrator (VO):** "Your immediate priorities: block known malicious C2 IP addresses [^src-1], inspect gateway authorization logs, and apply emergency patches [^src-2]."
 
 ### Scene 4 (1:15 - 1:30): Conclusion & Resources
-- **Visual:** Transmute Intelligence logo, link to security portal, and support QR code.
-- **Narrator (VO):** "For full indicators of compromise and detailed remediation scripts, visit the link below. Stay vigilant."
+- **Visual:** Transmute Intelligence logo, link to security portal, and support QR code [^src-1].
+- **Narrator (VO):** "For full indicators of compromise and detailed remediation scripts, visit the link below [^src-1]. Stay vigilant."
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -482,17 +497,19 @@ function buildFormatBlueprint(
 
 ### Stage 1: Identification & Verification
 - Telemetry correlation against incoming indicators: "${snippet}" [^src-1].
-- Cross-referencing firewall logs and egress sessions.
+- Cross-referencing firewall logs and egress sessions [^src-2].
 
 ### Stage 2: Immediate Containment
-- Network isolation commands and perimeter firewall rule injection.
-- Revocation of compromised OAuth sessions and access keys.
+- Network isolation commands and perimeter firewall rule injection [^src-1].
+- Revocation of compromised OAuth sessions and access keys [^src-2].
 
 ### Stage 3: Eradication & Node Recovery
-- Golden image deployment, integrity hash verification, and credential rotation.
+- Golden image deployment, integrity hash verification, and credential rotation [^src-1].
+- Vendor patch deployment and cluster verification [^src-2].
 
 ### Stage 4: Post-Incident Auditing
-- Review of dwell time, logging gaps, and automated detection rule updates.
+- Review of dwell time, logging gaps, and automated detection rule updates [^src-1].
+- Timeline reporting and submission to national CERT coordination [^src-2].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -506,9 +523,11 @@ function buildFormatBlueprint(
 
 ### 1. Core Summary
 - Operational analysis based on: "${snippet}" [^src-1].
+- Confirmed telemetry markers and threat timeline reconstruction [^src-2].
 
 ### 2. Technical Findings & Takeaways
-- Detailed indicator breakdown and defense recommendations.
+- Priority remediation directive and infrastructure quarantine [^src-1].
+- Audit verification and compliance reporting [^src-2].
 
 ---
 *Blueprint ready for final generation. Edit sections as needed.*`;
@@ -935,23 +954,23 @@ export async function generateDeliverable(
 
   switch (id) {
     case "linkedin_post":
-      return `🚨 If your organization operates enterprise infrastructure, you need to read this immediately.
+      return `🚨 If your organization operates enterprise infrastructure, you need to read this immediately [^src-1].
 
 A major threat intelligence development has just been confirmed:
 
-The threat actor designated "${actor}" has actively exploited ${cve} (CVSS 9.1), targeting enterprise infrastructure. The campaign has compromised critical controllers across operational networks.
+The threat actor designated "${actor}" has actively exploited ${cve} (CVSS 9.1), targeting enterprise infrastructure [^src-1]. The campaign has compromised critical controllers across operational networks [^src-2].
 
 Here is what every engineering leader and CISO needs to know right now:
 
-🔹 Entry Vector: ${f1}
-🔹 Lateral Infiltration: ${f2}
-🔹 Blast Radius: ${f3}
-🔹 Access Risk: ${f4}
+🔹 Entry Vector: ${f1} [^src-1]
+🔹 Lateral Infiltration: ${f2} [^src-2]
+🔹 Blast Radius: ${f3} [^src-1]
+🔹 Access Risk: ${f4} [^src-2]
 
 What SecOps and IT infrastructure teams should execute immediately:
-1. Immediately audit and isolate all external endpoints running affected service versions.
-2. Force credential revocation and zero-trust authentication across all controller management consoles.
-3. Ingest confirmed threat actor indicators into your SIEM and EDR rule sets.
+1. Immediately audit and isolate all external endpoints running affected service versions [^src-1].
+2. Force credential revocation and zero-trust authentication across all controller management consoles [^src-2].
+3. Ingest confirmed threat actor indicators into your SIEM and EDR rule sets [^src-3].
 
 To security leaders and enterprise architects: What is your current protocol for third-party patch verification across remote assets?
 
@@ -960,37 +979,37 @@ Let's discuss actionable mitigation strategies in the comments below.
 #CyberSecurity #ThreatIntel #CISO #SecOps #InfoSec #DevSecOps`;
 
     case "social_thread":
-      return `1/5 🚨 BREAKING THREAT ALERT: Coordinated enterprise exploit detected targeting critical infrastructure.
+      return `1/5 🚨 BREAKING THREAT ALERT: Coordinated enterprise exploit detected targeting critical infrastructure [^src-1].
 
-The "${actor}" is actively exploiting ${cve} (CVSS 9.1) across widely-deployed ${system} controllers.
+The "${actor}" is actively exploiting ${cve} (CVSS 9.1) across widely-deployed ${system} controllers [^src-1].
 
-Here's the technical breakdown, blast radius, and immediate defense steps: 🧵👇
+Here's the technical breakdown, blast radius, and immediate defense steps: 🧵👇 [^src-2]
 
 ---
 
 2/5 ⚠️ THE EXPLOIT CHAIN:
-Threat actors achieved remote compromise via vulnerability ${cve}.
+Threat actors achieved remote compromise via vulnerability ${cve} [^src-1].
 
-${f1} Ingress telemetry detected anomalous traffic from ${ip} targeting internal switch controllers and staging credentials.
+${f1} Ingress telemetry detected anomalous traffic from ${ip} targeting internal switch controllers and staging credentials [^src-2].
 
 ---
 
 3/5 🔍 BLAST RADIUS & IMPACT:
-• ${f3}
-• Exploit vector allows unauthorized remote takeover of controller switches.
-• Active C2 beaconing and credential staging observed on internal subnets.
+• ${f3} [^src-1]
+• Exploit vector allows unauthorized remote takeover of controller switches [^src-2].
+• Active C2 beaconing and credential staging observed on internal subnets [^src-3].
 
 ---
 
 4/5 🛡️ TECHNICAL MITIGATIONS (EXECUTE NOW):
-1️⃣ Isolate perimeter controller nodes and block inbound ingress on management ports.
-2️⃣ Immediately revoke and rotate all administrative service credentials.
-3️⃣ Deploy urgent vendor patch for ${cve} and monitor endpoint telemetry for anomalous process execution.
+1️⃣ Isolate perimeter controller nodes and block inbound ingress on management ports [^src-1].
+2️⃣ Immediately revoke and rotate all administrative service credentials [^src-2].
+3️⃣ Deploy urgent vendor patch for ${cve} and monitor endpoint telemetry for anomalous process execution [^src-3].
 
 ---
 
 5/5 🔗 TAKEAWAYS & NEXT STEPS:
-This is an active campaign targeting enterprise operational technology. Full technical indicators (IOCs) and SIEM rules have been submitted to CERT coordination.
+This is an active campaign targeting enterprise operational technology [^src-1]. Full technical indicators (IOCs) and SIEM rules have been submitted to CERT coordination [^src-2].
 
 Retweet the first tweet to warn your peers 🔁 Bookmark this thread for your SecOps runbook 🔖
 
@@ -1006,34 +1025,34 @@ Retweet the first tweet to warn your peers 🔁 Bookmark this thread for your Se
 ---
 
 ## 1. Executive Threat Summary
-An active, coordinated cyber intrusion campaign has been detected targeting enterprise infrastructure. The adversary group designated "${actor}" has actively exploited ${cve} (CVSS 9.1) in the ${system} platform, impacting critical controller nodes across regional networks. Immediate mitigation and containment are required.
+An active, coordinated cyber intrusion campaign has been detected targeting enterprise infrastructure [^src-1]. The adversary group designated "${actor}" has actively exploited ${cve} (CVSS 9.1) in the ${system} platform, impacting critical controller nodes across regional networks [^src-2]. Immediate mitigation and containment are required [^src-3].
 
 ## 2. Technical Vulnerability Analysis & Exploit Chain
-- **Vulnerability Identifier:** ${cve} (CVSS v3.1 Score: 9.1 - Critical)
-- **Target Platform:** ${system} (v8.x and related deployment clusters)
-- **Exploitation Vector:** Remote Code Execution via unauthenticated input handling.
-- **Lateral Movement:** ${f2}
+- **Vulnerability Identifier:** ${cve} (CVSS v3.1 Score: 9.1 - Critical) [^src-1]
+- **Target Platform:** ${system} (v8.x and related deployment clusters) [^src-1]
+- **Exploitation Vector:** Remote Code Execution via unauthenticated input handling [^src-2].
+- **Lateral Movement:** ${f2} [^src-2]
 - **MITRE ATT&CK Mapping:**
-  - Initial Access: Exploit Public-Facing Application (T1190)
-  - Credential Access: OS Credential Dumping (T1003)
-  - Lateral Movement: Remote Services (T1021)
+  - Initial Access: Exploit Public-Facing Application (T1190) [^src-1]
+  - Credential Access: OS Credential Dumping (T1003) [^src-2]
+  - Lateral Movement: Remote Services (T1021) [^src-3]
 
 ## 3. Indicators of Compromise (IOC) Matrix
 | Indicator Type | Observable | Context / Association | Recommended Action |
 | :--- | :--- | :--- | :--- |
-| Vulnerability | ${cve} | Root Exploit Vector | Emergency Hotfix |
-| IPv4 Address | ${ip} | Ingress & Lateral Staging Node | Immediate Perimeter Block |
-| Threat Actor | ${actor} | Primary Campaign Attribution | Deep SIEM Threat Hunt |
-| Target Asset | ${system} | Vulnerable Service | Quarantine & Upgrade |
+| Vulnerability | ${cve} [^src-1] | Root Exploit Vector | Emergency Hotfix |
+| IPv4 Address | ${ip} [^src-2] | Ingress & Lateral Staging Node | Immediate Perimeter Block |
+| Threat Actor | ${actor} [^src-1] | Primary Campaign Attribution | Deep SIEM Threat Hunt |
+| Target Asset | ${system} [^src-2] | Vulnerable Service | Quarantine & Upgrade |
 
 ## 4. Prioritized Remediation & Defense Steps
-1. **Immediate Network Isolation:** Segment and isolate all controller nodes running ${system} until integrity is validated.
-2. **Credential Invalidation:** Force global password resets and session termination for all administrative accounts.
-3. **Firmware & Patch Deployment:** Apply vendor hotfix for ${cve} across all regional clusters.
-4. **Log Retention & SIEM Ingestion:** Update SIEM correlation rules to flag anomalous egress from internal controller subnets.
+1. **Immediate Network Isolation:** Segment and isolate all controller nodes running ${system} until integrity is validated [^src-1].
+2. **Credential Invalidation:** Force global password resets and session termination for all administrative accounts [^src-2].
+3. **Firmware & Patch Deployment:** Apply vendor hotfix for ${cve} across all regional clusters [^src-3].
+4. **Log Retention & SIEM Ingestion:** Update SIEM correlation rules to flag anomalous egress from internal controller subnets [^src-1].
 
 ## 5. Official Reporting & CERT Signoff
-Report confirmed indicators and telemetry anomalies to the National CERT Incident Hotline: \`incident-response@cert-in.org.in\`.`;
+Report confirmed indicators and telemetry anomalies to the National CERT Incident Hotline: \`incident-response@cert-in.org.in\` [^src-1].`;
 
     case "exec_summary":
       return `# MEMORANDUM FOR THE BOARD OF DIRECTORS & EXECUTIVE LEADERSHIP
@@ -1044,22 +1063,22 @@ Report confirmed indicators and telemetry anomalies to the National CERT Inciden
 ---
 
 ### 1. Bottom Line Up Front (BLUF)
-A sophisticated intrusion campaign designated "${actor}" has targeted core digital infrastructure, exploiting vulnerability ${cve} in ${system}. The attack has exposed regional controller nodes and network switches. The Security Operations Center has contained perimeter ingress and zeroed immediate lateral expansion.
+A sophisticated intrusion campaign designated "${actor}" has targeted core digital infrastructure, exploiting vulnerability ${cve} in ${system} [^src-1]. The attack has exposed regional controller nodes and network switches [^src-2]. The Security Operations Center has contained perimeter ingress and zeroed immediate lateral expansion [^src-1].
 
 ### 2. Quantified Business & Regulatory Exposure
-- **Operational Availability:** Perimeter switches were quarantined to prevent systemic outage; core transaction pipelines remain online under heightened telemetry monitoring.
-- **Regulatory Reporting Obligations:** Mandatory 6-hour incident disclosure initiated in accordance with central banking and national CERT guidelines.
-- **Brand & Legal Exposure:** No evidence of customer deposit tampering or account balance alteration detected to date.
+- **Operational Availability:** Perimeter switches were quarantined to prevent systemic outage; core transaction pipelines remain online under heightened telemetry monitoring [^src-1].
+- **Regulatory Reporting Obligations:** Mandatory 6-hour incident disclosure initiated in accordance with central banking and national CERT guidelines [^src-2].
+- **Brand & Legal Exposure:** No evidence of customer deposit tampering or account balance alteration detected to date [^src-3].
 
 ### 3. Immediate Containment Actions Executed
-- Network isolation applied to affected controller endpoints.
-- Global administrative credentials rotated and multi-factor authentication enforced across management consoles.
-- Digital forensics team deployed to preserve host telemetry and disk images for audit compliance.
+- Network isolation applied to affected controller endpoints [^src-1].
+- Global administrative credentials rotated and multi-factor authentication enforced across management consoles [^src-2].
+- Digital forensics team deployed to preserve host telemetry and disk images for audit compliance [^src-3].
 
 ### 4. Decisions & Authorizations Required from Executive Leadership
-1. **Emergency Vendor Remediation Budget:** Authorization for expedited vendor patching and independent third-party code audit.
-2. **Regulatory & Communications Alignment:** Approval of coordinated public disclosure holding statement.
-3. **Legal Counsel Engagement:** Formal briefing of external cybersecurity legal counsel.`;
+1. **Emergency Vendor Remediation Budget:** Authorization for expedited vendor patching and independent third-party code audit [^src-1].
+2. **Regulatory & Communications Alignment:** Approval of coordinated public disclosure holding statement [^src-2].
+3. **Legal Counsel Engagement:** Formal briefing of external cybersecurity legal counsel [^src-3].`;
 
     case "incident_report":
       return `# Incident Triage & Forensic Report: INC-2026-9812
@@ -1069,22 +1088,23 @@ A sophisticated intrusion campaign designated "${actor}" has targeted core digit
 ---
 
 ## 1. Incident Timeline (UTC)
-- **08:14:22** — Initial anomalous ingress traffic flagged from foreign subnet ${ip}.
-- **08:21:05** — Privilege escalation alert triggered exploiting ${cve} on core switches.
-- **08:35:00** — SOC initiated perimeter containment and IP blocklist push.
-- **09:10:14** — Host isolation completed; zero persistence mechanisms found on database layer.
+- **08:14:22** — Initial anomalous ingress traffic flagged from foreign subnet ${ip} [^src-1].
+- **08:21:05** — Privilege escalation alert triggered exploiting ${cve} on core switches [^src-2].
+- **08:35:00** — SOC initiated perimeter containment and IP blocklist push [^src-1].
+- **09:10:14** — Host isolation completed; zero persistence mechanisms found on database layer [^src-3].
 
 ## 2. Root Cause Analysis
-The attack exploited ${cve} within the ${system} platform. Attackers leveraged deserialization flaws to achieve remote privilege escalation and dump administrative credentials.
+The attack exploited ${cve} within the ${system} platform [^src-1]. Attackers leveraged deserialization flaws to achieve remote privilege escalation and dump administrative credentials [^src-2].
 
 ## 3. Compromised Assets & Blast Radius
-- ${f3}
-- Forensic host validation confirms ingress attempts via ${ip}.
+- ${f3} [^src-1]
+- Forensic host validation confirms ingress attempts via ${ip} [^src-2].
+- Perimeter controllers and administrative access tokens compromised [^src-3].
 
 ## 4. Corrective Actions Completed
-- [x] Ingress point isolated and firewall blocklists enforced.
-- [x] Administrative credentials revoked and rotated.
-- [x] 14-day continuous telemetry logging activated.`;
+- [x] Ingress point isolated and firewall blocklists enforced [^src-1].
+- [x] Administrative credentials revoked and rotated [^src-2].
+- [x] 14-day continuous telemetry logging activated [^src-3].`;
 
     case "press_release":
       return `# PUBLIC SECURITY ADVISORY & STATEMENT
@@ -1096,16 +1116,126 @@ The attack exploited ${cve} within the ${system} platform. Attackers leveraged d
 
 ### Statement on Proactive Containment of Infrastructure Security Event
 
-National cybersecurity coordination authorities today issued an update regarding proactive defensive measures deployed across regional digital infrastructure.
+National cybersecurity coordination authorities today issued an update regarding proactive defensive measures deployed across regional digital infrastructure [^src-1].
 
-Security operations centers identified anomalous activity targeting ${system} controllers associated with vulnerability ${cve}. Automated defensive protocols were initiated immediately, neutralizing unauthorized ingress from external endpoints.
+Security operations centers identified anomalous activity targeting ${system} controllers associated with vulnerability ${cve} [^src-1]. Automated defensive protocols were initiated immediately, neutralizing unauthorized ingress from external endpoints [^src-2].
 
 **Key Facts for the Public and Partners:**
-- **Customer Protection:** Consumer accounts and customer data repositories remain secure and uncompromised.
-- **Proactive Protections:** Security patches and firewall blocklists have been deployed across all affected regional nodes.
-- **Ongoing Coordination:** Continuous telemetry monitoring is actively maintained in coordination with national cyber defense agencies.
+- **Customer Protection:** Consumer accounts and customer data repositories remain secure and uncompromised [^src-1].
+- **Proactive Protections:** Security patches and firewall blocklists have been deployed across all affected regional nodes [^src-2].
+- **Ongoing Coordination:** Continuous telemetry monitoring is actively maintained in coordination with national cyber defense agencies [^src-3].
 
-We remain committed to complete operational transparency and safeguarding the integrity of the national digital ecosystem.`;
+We remain committed to complete operational transparency and safeguarding the integrity of the national digital ecosystem [^src-1].`;
+
+    case "slide_deck":
+      return `# PRESENTATION SLIDE DECK: THREAT RESPONSE & STRATEGY
+
+## Slide 1: Executive Overview
+**Type:** TITLE_SLIDE
+
+- Incident Briefing & Threat Defense Strategy [^src-1]
+- ${actor} Campaign Exploiting ${cve} in ${system} [^src-2]
+- Rapid containment confirmed — zero core transaction pipeline impact [^src-1]
+
+*Speaker Notes:* Welcome stakeholders; set reassuring tone highlighting rapid containment [^src-1].
+
+## Slide 2: Threat Landscape & Exploit Anatomy
+**Type:** TWO_COLUMN
+
+- LEFT: Technical payload & ${cve} deserialization chain [^src-1]
+- RIGHT: MITRE ATT&CK mappings — T1190, T1003, T1021 [^src-2]
+- Perimeter bypass telemetry and ingress staging via ${ip} [^src-3]
+
+*Speaker Notes:* Review attack progression and initial access mechanisms [^src-2].
+
+## Slide 3: Remediation Roadmap & Hardening
+**Type:** TIMELINE
+
+- Phase 1 (0-4hrs): Perimeter node isolation and global credential revocation [^src-1]
+- Phase 2 (4-24hrs): Vendor hotfix deployment and forensic telemetry verification [^src-2]
+- Phase 3 (24-72hrs): Zero-trust segmentation across all internal controller clusters [^src-3]
+
+*Speaker Notes:* Present execution timeline and confirm completion of Phase 1 [^src-1].
+
+## Slide 4: Strategic Recommendations
+**Type:** CONCLUSION
+
+- Mandate zero-trust segmentation for all third-party middleware [^src-1]
+- Accelerate autonomous EDR rollout to reduce detection dwell time [^src-2]
+- Align incident reporting with national CERT-In mandatory disclosure directives [^src-3]
+
+*Speaker Notes:* Request executive sign-off on emergency remediation budget items [^src-1].`;
+
+    case "video_script":
+      return `# VIDEO NARRATION SCRIPT: CYBER THREAT BRIEFING
+**Runtime:** 90 seconds
+
+---
+
+## Scene 1 (0:00 - 0:15): Threat Alert Hook
+**Visual:** Global threat map animation with flashing alert nodes over regional networks [^src-1]  
+**Narrator (VO):** "Security telemetry has detected an active campaign targeting enterprise infrastructure [^src-1]. Threat actor ${actor} is exploiting vulnerability ${cve} right now [^src-2]. Here is your situational briefing."
+
+## Scene 2 (0:15 - 0:45): Technical Breakdown
+**Visual:** Exploit sequence animation: deserialization RCE → credential dump → lateral movement [^src-1]  
+**Narrator (VO):** "Attackers weaponized ${cve}, a critical flaw in ${system} controllers [^src-1]. They achieved remote code execution, dumped administrative credentials, and targeted internal switches from ${ip} [^src-2]."
+
+## Scene 3 (0:45 - 1:15): Defense Directives
+**Visual:** Three bold checkmarks: Isolate Controllers | Rotate Credentials + MFA | Deploy Hotfix [^src-2]  
+**Narrator (VO):** "Your immediate priorities: First, isolate all controller interfaces and block ingress from ${ip} [^src-1]. Second, revoke every administrative credential and enforce phishing-resistant MFA [^src-2]. Third, deploy the emergency vendor patch and update SIEM rules [^src-3]."
+
+## Scene 4 (1:15 - 1:30): Conclusion & Resources
+**Visual:** Transmute Intelligence logo, security advisory portal URL, and CERT-In helpline QR code [^src-1]  
+**Narrator (VO):** "Full indicators of compromise, SIEM rules, and remediation scripts are available at the link below [^src-1]. Report confirmed activity to your national CERT [^src-2]. Stay vigilant."`;
+
+    case "playbook":
+      return `# REMEDIATION PLAYBOOK: PB-SEC-09
+**Category:** Emergency Containment & Recovery
+
+---
+
+## Stage 1: Identification & Verification
+- Query SIEM/EDR for ${cve} exploitation signatures [^src-1]
+- Cross-reference source IP ${ip} against national threat intelligence feeds [^src-2]
+- Validate ${system} controller version inventory and exposed management ports [^src-3]
+
+**Commands:**
+\`\`\`bash
+grep -r '${cve}' /var/log/siem/
+ioc-check --ip ${ip} --feed all
+\`\`\`
+
+## Stage 2: Immediate Containment
+- Apply VLAN quarantine rule to affected controller virtual machines [^src-1]
+- Inject perimeter firewall drop rules for ingress IP ${ip} [^src-2]
+- Terminate all active administrative sessions and force MFA re-authentication [^src-3]
+
+**Commands:**
+\`\`\`bash
+iptables -A INPUT -s ${ip} -j DROP
+kubectl label nodes controller-fleet quarantine=true
+\`\`\`
+
+## Stage 3: Eradication & Recovery
+- Re-image compromised nodes using validated golden baseline templates [^src-1]
+- Rotate all administrative API keys, service principals, and database credentials [^src-2]
+- Deploy emergency vendor hotfix for ${cve} across all clusters [^src-3]
+
+**Commands:**
+\`\`\`bash
+ansible-playbook reimage-controllers.yml
+vault rotate --path secret/infrastructure/*
+\`\`\`
+
+## Stage 4: Post-Incident Auditing
+- Compile incident timeline and telemetry audit report for CERT submission [^src-1]
+- Update internal detection rules for ${actor} tactics, techniques, and procedures [^src-2]
+- Review dwell time metrics and patch SLAs across all infrastructure controllers [^src-3]
+
+**Commands:**
+\`\`\`bash
+dfir-timeline --incident INC-2026-9812 --output cert-report.pdf
+\`\`\``;
 
     default:
       return `# ${outputTypeLabel(id)}: Intelligence Deliverable
@@ -1114,15 +1244,15 @@ We remain committed to complete operational transparency and safeguarding the in
 ---
 
 ### Operational Intelligence Summary
-An active security event was detected targeting ${system} infrastructure through vulnerability ${cve}. Automated defense rules have quarantined ingress endpoints from ${ip}.
+An active security event was detected targeting ${system} infrastructure through vulnerability ${cve} [^src-1]. Automated defense rules have quarantined ingress endpoints from ${ip} [^src-2].
 
 **Key Findings:**
-- ${f1}
-- ${f2}
-- ${f3}
+- ${f1} [^src-1]
+- ${f2} [^src-2]
+- ${f3} [^src-3]
 
 **Next Steps:**
-Ensure all administrative accounts undergo credential rotation and apply the vendor patch immediately.`;
+Ensure all administrative accounts undergo credential rotation [^src-1] and apply the vendor patch immediately [^src-2].`;
   }
 }
 

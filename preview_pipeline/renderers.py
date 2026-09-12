@@ -147,7 +147,8 @@ def render_press_release(c: dict) -> str:
         "",
         "### Proactive Protections Applied",
     ]
-    for m in c.get("proactive_measures", []):
+    proactive = c.get("proactive_measures") or c.get("remediation_steps") or []
+    for m in proactive:
         lines.append(f"- {m}")
     lines.extend([
         "",

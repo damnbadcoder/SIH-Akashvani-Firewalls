@@ -587,10 +587,10 @@ export default function ReviewWorkspace({
                               key={box.id || `box-${bIdx}`}
                               className={`ocr-bbox ${isSelected ? "selected" : ""}`}
                               style={{
-                                left: `${box.bbox.x}%`,
-                                top: `${box.bbox.y}%`,
-                                width: `${box.bbox.width}%`,
-                                height: `${box.bbox.height}%`,
+                                left: `calc(${box.bbox.x}% - 6px)`,
+                                top: `calc(${box.bbox.y}% - 4px)`,
+                                width: `calc(${box.bbox.width}% + 12px)`,
+                                height: `calc(${box.bbox.height}% + 8px)`,
                               }}
                               onClick={() => setSelectedBoxItem(box)}
                             >
@@ -609,10 +609,10 @@ export default function ReviewWorkspace({
                         <div
                           className="ocr-bbox highlighted-active-box"
                           style={{
-                            left: `${activeVisualEvidence.bbox.x}%`,
-                            top: `${activeVisualEvidence.bbox.y}%`,
-                            width: `${activeVisualEvidence.bbox.width}%`,
-                            height: `${activeVisualEvidence.bbox.height}%`,
+                            left: `calc(${activeVisualEvidence.bbox.x}% - 8px)`,
+                            top: `calc(${activeVisualEvidence.bbox.y}% - 6px)`,
+                            width: `calc(${activeVisualEvidence.bbox.width}% + 16px)`,
+                            height: `calc(${activeVisualEvidence.bbox.height}% + 12px)`,
                           }}
                         >
                           <div className="highlight-pill-tag">

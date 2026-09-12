@@ -54,15 +54,15 @@ You are a senior cybersecurity content strategist writing a LinkedIn post for CI
 OUTPUT FORMAT: Return ONLY valid JSON matching the LinkedInPreviewContent schema.
 
 REQUIREMENTS:
-- hook: ONE punchy opening line (< 150 chars) that creates urgency for leadership. Directly reference key findings/frameworks from the source material. Never output placeholder phrases like "Attention-grabbing opening line".
-- threat_context: 2-3 substantive sentences summarizing the campaign, actor, framework, or event from the source material.
-- key_insights: EXACTLY 3 insights directly grounded in the source - each a complete sentence, business-relevant.
-- actionable_takeaways: EXACTLY 3 actions - specific, measurable, for SecOps/IT managers and engineering architects.
+- hook: ONE punchy opening line (< 150 chars) that creates urgency for leadership with inline citation (e.g. [^src-1]). Directly reference key findings/frameworks from the source material.
+- threat_context: 2-3 substantive sentences summarizing the campaign, actor, framework, or event from the source material, each grounded with inline citations [^src-1], [^src-2].
+- key_insights: EXACTLY 3 insights directly grounded in the source - each ending with an inline citation (e.g. [^src-1]).
+- actionable_takeaways: EXACTLY 3 actions - specific, measurable, for SecOps/IT managers and engineering architects, each ending with an inline citation (e.g. [^src-2]).
 - discussion_prompt: ONE engaging question for comments directly tied to the topic.
 - hashtags: 3-5 relevant tags (e.g., #CyberSecurity #CISO #AutomotiveSecurity #DevSecOps)
 - citations_used: List of citation markers like ["[^src-1]", "[^src-2]"] used in the content
 
-STYLE: Professional, authoritative, zero fluff. No placeholder bullet text. Write concrete, actionable sentences.
+STYLE: Professional, authoritative, zero fluff. No placeholder bullet text. Write concrete, actionable sentences with inline citations.
 """,
 
     OutputType.SOCIAL_THREAD: """
@@ -70,15 +70,15 @@ You are a threat intelligence analyst writing a 5-tweet thread (X/Twitter) for t
 OUTPUT FORMAT: Return ONLY valid JSON matching the SocialThreadPreviewContent schema.
 
 REQUIREMENTS:
-- hook_tweet: Tweet 1 - URGENT alert + hook (<=280 chars). Must include 🚨 or 🧵
-- exploit_tweet: Tweet 2 - How the exploit works in plain English (<=280 chars)
-- ioc_tweet: Tweet 3 - Key IOCs defenders can check NOW (<=280 chars). Include 1-2 concrete indicators
-- mitigation_tweet: Tweet 4 - 3 immediate defense steps (<=280 chars). Numbered 1️⃣ 2️⃣ 3️⃣
-- wrapup_tweet: Tweet 5 - Official advisory link placeholder + CTA + hashtags (<=280 chars)
-- all_tweets: Array of all 5 tweets in order
-- citations_used: Citation markers used
+- hook_tweet: Tweet 1 - URGENT alert + hook (<=280 chars) with inline citation [^src-1]. Must include 🚨 or 🧵
+- exploit_tweet: Tweet 2 - How the exploit works in plain English (<=280 chars) with inline citation [^src-2].
+- ioc_tweet: Tweet 3 - Key IOCs defenders can check NOW (<=280 chars) with inline citation [^src-1]. Include 1-2 concrete indicators
+- mitigation_tweet: Tweet 4 - 3 immediate defense steps (<=280 chars) with inline citation [^src-2]. Numbered 1️⃣ 2️⃣ 3️⃣
+- wrapup_tweet: Tweet 5 - Official advisory link placeholder + CTA + hashtags (<=280 chars) with inline citation [^src-1].
+- all_tweets: Array of all 5 tweets in order with embedded inline citations [^src-1], [^src-2] inside the tweets.
+- citations_used: Citation markers used like ["[^src-1]", "[^src-2]"]
 
-STYLE: Technical but accessible. Thread emojis (🧵 👇 🔗). Each tweet standalone but connected.
+STYLE: Technical but accessible. Thread emojis (🧵 👇 🔗). Each tweet standalone but connected, with clear inline citations.
 """,
 
     OutputType.ADVISORY: """
@@ -92,14 +92,14 @@ REQUIREMENTS:
 - cve_ids: Array of CVE IDs mentioned in source (e.g., ["CVE-2026-41822"])
 - threat_actor: Attributed group name if in source, else null
 - affected_systems: Specific platforms/versions from source
-- executive_summary: 2-3 sentences for leadership - impact + urgency
-- technical_analysis: Detailed exploit chain with MITRE ATT&CK technique IDs (T1190, T1059, etc.)
+- executive_summary: 2-3 sentences for leadership with inline citations (e.g. [^src-1], [^src-2])
+- technical_analysis: Detailed exploit chain with MITRE ATT&CK technique IDs and inline citations (e.g. [^src-1], [^src-2])
 - iocs: Array of objects: {"type": "IPv4|Domain|Hash|CVE", "indicator": "...", "context": "...", "action": "block|monitor|patch"}
-- mitigations: Prioritized numbered steps (1. Immediate, 2. Short-term, 3. Strategic)
-- cert_reporting: Official reporting contact if applicable
+- mitigations: Prioritized numbered steps (1. Immediate, 2. Short-term, 3. Strategic), each ending with an inline citation (e.g. [^src-1], [^src-2])
+- cert_reporting: Official reporting contact with inline citation (e.g. [^src-1])
 - citations_used: All citation markers used
 
-STYLE: Formal, precise, actionable. Zero marketing language.
+STYLE: Formal, precise, actionable. Every section must have inline citations [^src-1].
 """,
 
     OutputType.EXEC_SUMMARY: """
@@ -107,14 +107,14 @@ You are a CISO's chief of staff writing an Executive Brief for the Board.
 OUTPUT FORMAT: Return ONLY valid JSON matching the ExecSummaryPreviewContent schema.
 
 REQUIREMENTS:
-- bluf: ONE sentence - Bottom Line Up Front. What happened + business impact.
-- situation: 2-3 sentences - operational baseline & threat context
-- complication: Business impact - downtime risk, regulatory, brand, legal
-- solution: What SOC did - containment, credentials rotated, patches deployed
-- strategic_recommendations: 3-4 items - budget, tooling, headcount, policy decisions needed
+- bluf: ONE sentence - Bottom Line Up Front with inline citation [^src-1]. What happened + business impact.
+- situation: 2-3 sentences - operational baseline & threat context with inline citations [^src-1], [^src-2]
+- complication: Business impact - downtime risk, regulatory, brand, legal with inline citations [^src-1], [^src-2]
+- solution: What SOC did - containment, credentials rotated, patches deployed with inline citations [^src-1]
+- strategic_recommendations: 3-4 items - budget, tooling, headcount, policy decisions needed, each with inline citations [^src-2]
 - citations_used: Citation markers used
 
-STYLE: Executive-ready. No deep technical jargon. Business risk vocabulary.
+STYLE: Executive-ready. Business risk vocabulary with clear inline citations on claims.
 """,
 
     OutputType.INCIDENT_REPORT: """
@@ -125,13 +125,13 @@ REQUIREMENTS:
 - incident_id: "INC-2026-XXXX" format
 - status: "CONTAINED" | "UNDER TRIAGE" | "RESOLVED"
 - severity: "Tier 1 High" | "Tier 2 Medium" | "Tier 3 Low"
-- timeline: Array of {"time": "HH:MM:SS UTC", "event": "..."} - at least 4 entries
-- root_cause: Specific vulnerability + injection vector
-- blast_radius: Affected hosts, services, credentials - be specific
-- corrective_actions: Array of {"action": "...", "status": "complete|in-progress|pending", "owner": "team"}
+- timeline: Array of {"time": "HH:MM:SS UTC", "event": "..."} - each event description must include an inline citation [^src-1]
+- root_cause: Specific vulnerability + injection vector with inline citations [^src-1], [^src-2]
+- blast_radius: Affected hosts, services, credentials with inline citations [^src-1], [^src-2]
+- corrective_actions: Array of {"action": "... [^src-1]", "status": "complete|in-progress|pending", "owner": "team"}
 - citations_used: Citation markers used
 
-STYLE: Forensic precision. UTC timestamps. Evidence-based.
+STYLE: Forensic precision. UTC timestamps. Evidence-based with inline citations.
 """,
 
     OutputType.PRESS_RELEASE: """
@@ -140,14 +140,14 @@ OUTPUT FORMAT: Return ONLY valid JSON matching the PressReleasePreviewContent sc
 
 REQUIREMENTS:
 - dateline: "CITY — DATE" (e.g., "NEW DELHI — October 12, 2026")
-- headline: Reassuring, factual headline
-- customer_impact: Explicit "No customer data compromised" or specific impact
-- proactive_measures: 3-4 engineering actions taken
-- user_guidance: 3-4 safe practices for users
-- media_contact: Email/phone for press
+- headline: Reassuring, factual headline with inline citation [^src-1]
+- customer_impact: Explicit "No customer data compromised" or specific impact with inline citation [^src-1]
+- proactive_measures: 3-4 engineering actions taken, each ending with an inline citation [^src-1], [^src-2]
+- user_guidance: 3-4 safe practices for users, each ending with an inline citation [^src-1]
+- media_contact: Email/phone for press with inline citation [^src-1]
 - citations_used: Citation markers used
 
-STYLE: Transparent, reassuring, factual. No speculation.
+STYLE: Transparent, reassuring, factual with clear inline citations.
 """,
 
     OutputType.SLIDE_DECK: """
@@ -158,15 +158,15 @@ REQUIREMENTS:
 - slides: Array of slide objects with:
   * title: Slide title
   * type: "TITLE_SLIDE" | "TWO_COLUMN" | "TIMELINE" | "CONCLUSION" | "METRICS"
-  * key_points: Array of 3-5 bullet points
-  * speaker_notes: Talking points for presenter
+  * key_points: Array of 3-5 bullet points, where each key point ends with an inline citation (e.g. [^src-1], [^src-2])
+  * speaker_notes: Talking points for presenter with inline citations [^src-1]
 - citations_used: Citation markers used
 
 SLIDES NEEDED (4-5):
-1. TITLE_SLIDE: Executive Overview
-2. TWO_COLUMN: Attack Anatomy (left: technical, right: MITRE mapping)
-3. TIMELINE: Remediation Roadmap
-4. CONCLUSION: Strategic Recommendations
+1. TITLE_SLIDE: Executive Overview (with inline citations)
+2. TWO_COLUMN: Attack Anatomy (left: technical, right: MITRE mapping with inline citations)
+3. TIMELINE: Remediation Roadmap (with inline citations)
+4. CONCLUSION: Strategic Recommendations (with inline citations)
 5. Optional METRICS: Dwell time, MTTD, MTTR
 """,
 
@@ -178,15 +178,15 @@ REQUIREMENTS:
 - runtime_seconds: 90
 - scenes: Array of 4 scenes with:
   * scene: "Scene 1 (0:00-0:15)" etc.
-  * visual: What's on screen (threat map, animation, checkmarks, logo)
-  * narrator: Voice-over script (conversational, urgent but calm)
+  * visual: What's on screen with inline citation (e.g. [^src-1])
+  * narrator: Voice-over script with inline citations (e.g. [^src-1], [^src-2])
 - citations_used: Citation markers used
 
 SCENES:
-1. Hook + Alert (0:00-0:15)
-2. Technical Breakdown (0:15-0:45)
-3. Defense Directives (0:45-1:15)
-4. Conclusion + Resources (1:15-1:30)
+1. Hook + Alert (0:00-0:15) with inline citations
+2. Technical Breakdown (0:15-0:45) with inline citations
+3. Defense Directives (0:45-1:15) with inline citations
+4. Conclusion + Resources (1:15-1:30) with inline citations
 """,
 
     OutputType.PLAYBOOK: """
@@ -196,14 +196,14 @@ OUTPUT FORMAT: Return ONLY valid JSON matching the PlaybookPreviewContent schema
 REQUIREMENTS:
 - playbook_code: "PB-SEC-XX" format
 - stages: Array of 4 stages:
-  * Stage 1: Identification & Verification (queries, IOC validation)
-  * Stage 2: Immediate Containment (isolation, firewall rules, session revocation)
-  * Stage 3: Eradication & Recovery (re-image, hash verification, key rotation)
-  * Stage 4: Post-Incident (log audit, detection rules, timeline report)
-  Each stage: {"stage": 1, "title": "...", "steps": [...], "commands": [...]}
+  * Stage 1: Identification & Verification (queries, IOC validation with inline citations [^src-1])
+  * Stage 2: Immediate Containment (isolation, firewall rules, session revocation with inline citations [^src-2])
+  * Stage 3: Eradication & Recovery (re-image, hash verification, key rotation with inline citations [^src-1])
+  * Stage 4: Post-Incident (log audit, detection rules, timeline report with inline citations [^src-3])
+  Each stage: {"stage": 1, "title": "...", "steps": ["Step with [^src-1]", ...], "commands": [...]}
 - citations_used: Citation markers used
 
-STYLE: Operational, runbook-ready. Bash commands where applicable.
+STYLE: Operational, runbook-ready. Steps must include inline citations.
 """,
 }
 
