@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "url": "https://cert-in.org.in/advisories/2026",
+    "canonical_url": null,
+    "domain": "cert-in.org.in",
+    "title": "Cert-In - Home Page",
+    "author": null,
+    "description": null,
+    "published_time": null,
+    "site_name": "cert-in.org.in",
+    "status_code": 200,
+    "content_type": "text/html",
+    "word_count": 13,
+    "character_count": 126,
+    "estimated_tokens": 31,
+    "line_count": 5,
+    "scraped_at": "2026-09-12T21:52:54.424275+00:00",
+    "sha256_checksum": "5df20e4f72e3437d480fb1124c5f6d2f1627d1499d5d9ce6af6c352f3613492e",
+    "og_metadata": {},
+    "json_ld_data": [],
+    "response_headers": {
+      "date": "Sat, 12 Sep 2026 21:52:52 GMT",
+      "etag": "\"35c-68443bf0\"",
+      "content-type": "text/html",
+      "content-length": "938"
+    }
+  },
+  "clean_markdown": "# Cert-In - Home Page\n\n| Ingestion Metric | Value |\n| :--- | :--- |\n| **Source URL** | [https://cert-in.org.in/advisories/2026](https://cert-in.org.in/advisories/2026) |\n| **Domain** | `cert-in.org.in` |\n| **Publisher / Site** | cert-in.org.in |\n| **Scraped At** | `2026-09-12T21:52:54.424275+00:00` |\n| **Word Count** | 13 words (~31 tokens) |\n| **HTTP Status** | `200` (text/html) |\n\n## Webpage Context\n![banner](https://cert-in.org.in/advisories/Images/MainImglatest.jpg)\n\n# The requested URL is not found.\n\n# Click to go toHome\n\n### Grounding Provenance & Anchors\n| Citation Anchor | Section | Verbatim Evidence | Type |\n| :--- | :--- | :--- | :--- |\n| `^link-cert-in.org.in-p1` | Web Overview | ![banner](https://cert-in.org.in/advisories/Images/MainImglatest.jpg)... | `PARAGRAPH` |\n| `^link-cert-in.org.in-h2` | The requested URL is not found. | The requested URL is not found.... | `HEADING` |\n| `^link-cert-in.org.in-h3` | Click to go toHome | Click to go toHome... | `HEADING` |",
+  "iocs": {
+    "cves": [],
+    "ipv4_addresses": [],
+    "ipv6_addresses": [],
+    "sha256_hashes": [],
+    "sha1_hashes": [],
+    "md5_hashes": [],
+    "domains": [
+      "cert-in.org.in"
+    ],
+    "urls": [
+      "https://cert-in.org.in/advisories/Images/MainImglatest.jpg"
+    ],
+    "mitre_attack_ids": [],
+    "threat_actors": [],
+    "total_iocs_found": 0
+  },
+  "grounding_sources": [
+    {
+      "id": "link-cert-in.org.in-p1",
+      "section": "Web Overview",
+      "extracted_verbatim": "![banner](https://cert-in.org.in/advisories/Images/MainImglatest.jpg)",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-cert-in.org.in-h2",
+      "section": "The requested URL is not found.",
+      "extracted_verbatim": "The requested URL is not found.",
+      "anchor_type": "HEADING",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-cert-in.org.in-h3",
+      "section": "Click to go toHome",
+      "extracted_verbatim": "Click to go toHome",
+      "anchor_type": "HEADING",
+      "confidence": 0.95
+    }
+  ],
+  "md_file_path": "/home/subham/Documents/SIH-current/storage/links/9b4418c7-4fbb-4fc3-b606-cbaec49fe686/cert-in.org.in_advisories_2026_context.md",
+  "json_file_path": null,
+  "execution_time_ms": 80720,
+  "success": true,
+  "error_message": null
+}

@@ -24,10 +24,11 @@ class Settings(BaseSettings):
     )
     SQLITE_FALLBACK_URL: str = f"sqlite:///{BASE_DIR}/transmute.db"
 
-    # File Storage
+    BASE_DIR: Path = BASE_DIR
     STORAGE_DIR: Path = BASE_DIR / "storage"
     UPLOADS_DIR: Path = BASE_DIR / "storage" / "uploads"
     PREVIEWS_DIR: Path = BASE_DIR / "storage" / "previews"
+    LINKS_DIR: Path = BASE_DIR / "storage" / "links"
 
     # LLM Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -49,3 +50,4 @@ settings = Settings()
 settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 settings.PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+settings.LINKS_DIR.mkdir(parents=True, exist_ok=True)

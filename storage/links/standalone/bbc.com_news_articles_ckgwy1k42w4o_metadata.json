@@ -1,0 +1,216 @@
+{
+  "metadata": {
+    "url": "https://www.bbc.com/news/articles/ckgwy1k42w4o",
+    "canonical_url": "https://www.bbc.com/news/articles/ckgwy1k42w4o",
+    "domain": "bbc.com",
+    "title": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+    "author": "3 days agoShareSaveAdd as preferred on GoogleTom GerkenTechnology reporter",
+    "description": "It is the latest in a series of increasing warnings about the safety threat posed by artificial intelligence.",
+    "published_time": "2026-09-09T15:34:09.628Z",
+    "site_name": "bbc.com",
+    "status_code": 200,
+    "content_type": "text/html; charset=utf-8",
+    "word_count": 968,
+    "character_count": 7205,
+    "estimated_tokens": 1801,
+    "line_count": 95,
+    "scraped_at": "2026-09-12T22:03:43.123282+00:00",
+    "sha256_checksum": "4aa2af6ba8d4ac5ecbfbcb370b0f482d51a4a1191fa2c96193074b0958a98a10",
+    "og_metadata": {
+      "og:title": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "og:type": "article",
+      "og:url": "https://www.bbc.com/news/articles/ckgwy1k42w4o",
+      "twitter:title": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "og:description": "It is the latest in a series of increasing warnings about the safety threat posed by artificial intelligence.",
+      "twitter:description": "It is the latest in a series of increasing warnings about the safety threat posed by artificial intelligence.",
+      "og:image": "https://ichef.bbci.co.uk/news/1024/branded_news/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg",
+      "og:image:width": "1024",
+      "og:image:height": "576",
+      "twitter:image:src": "https://ichef.bbci.co.uk/news/1024/branded_news/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg",
+      "twitter:card": "summary_large_image",
+      "og:image:alt": "Claude logo on a smartphone",
+      "twitter:image:alt": "Claude logo on a smartphone",
+      "article:modified_time": "2026-09-09T15:34:09.628Z"
+    },
+    "json_ld_data": [
+      {
+        "@context": "https://schema.org",
+        "@type": "ReportageNewsArticle",
+        "url": "https://www.bbc.com/news/articles/ckgwy1k42w4o",
+        "publisher": {
+          "@type": "NewsMediaOrganization",
+          "name": "BBC News",
+          "publishingPrinciples": "http://www.bbc.co.uk/news/help-41670342",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://static.files.bbci.co.uk/ws/simorgh-assets/public/news/images/metadata/poster-1024x576.png"
+          }
+        },
+        "datePublished": "2026-09-09T08:59:52.994Z",
+        "dateModified": "2026-09-09T15:34:09.628Z",
+        "description": "It is the latest in a series of increasing warnings about the safety threat posed by artificial intelligence.",
+        "headline": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+        "image": {
+          "@type": "ImageObject",
+          "width": "1024",
+          "height": "576",
+          "url": "https://ichef.bbci.co.uk/news/1024/branded_news/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg"
+        },
+        "thumbnailUrl": "https://ichef.bbci.co.uk/news/1024/branded_news/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg",
+        "mainEntityOfPage": "https://www.bbc.com/news/articles/ckgwy1k42w4o",
+        "author": [
+          {
+            "@type": "Person",
+            "name": "Tom Gerken"
+          }
+        ]
+      }
+    ],
+    "response_headers": {
+      "content-length": "56715",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "\"vblkwfsb7r6cf0\"",
+      "server": "BBC-GTM",
+      "date": "Sat, 12 Sep 2026 22:03:42 GMT"
+    }
+  },
+  "clean_markdown": "# Anthropic researcher believes more than 10% chance AI 'could kill all humans'\n\n| Ingestion Metric | Value |\n| :--- | :--- |\n| **Source URL** | [https://www.bbc.com/news/articles/ckgwy1k42w4o](https://www.bbc.com/news/articles/ckgwy1k42w4o) |\n| **Domain** | `bbc.com` |\n| **Publisher / Site** | bbc.com |\n| **Author** | 3 days agoShareSaveAdd as preferred on GoogleTom GerkenTechnology reporter |\n| **Published Date** | `2026-09-09T15:34:09.628Z` |\n| **Scraped At** | `2026-09-12T22:03:43.123282+00:00` |\n| **Word Count** | 968 words (~1,801 tokens) |\n| **HTTP Status** | `200` (text/html; charset=utf-8) |\n\n> **Webpage Summary:** It is the latest in a series of increasing warnings about the safety threat posed by artificial intelligence.\n\n## Webpage Context\n# Anthropic researcher believes more than 10% chance AI 'could kill all humans'\n\n3 days ago\n\nTom GerkenTechnology reporter\n\n![Web Image](https://static.files.bbci.co.uk/bbcdotcom/web/20260907-085256-bea8b058c0-web-3.21.0/grey-placeholder.png)\n\n![Getty Images Claude logo on a smartphone](https://ichef.bbci.co.uk/news/480/cpsprodpb/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg.webp)\n\nGetty Images\n\nAnthropic makes the AI tool Claude, which is used as a chatbot and as a tool to help coding\n\nA top safety researcher at Anthropic has warned AI is advancing so quickly he believes there is a greater than 10% chance it \"could kill all humans\" within the next decade.\n\nEvan Hubinger said [in a post on X](https://x.com/EvanHub/status/2097497037956891126) the risk from the models which currently exist was \"low\" but he was \"worried\" the technology might develop and improve itself soon to the point where it posed an existential risk to humanity.\n\nHe did not spell out how he thought AI systems could in future result in humans being wiped out.\n\nBut his comments are the latest in a series of increasingly stark warnings about AI, with the debate shifting from whether it truly poses a risk to how big that risk is.\n\nHubinger's intervention was in response to [another post on X](https://x.com/hilbertspaess/status/2097476196791709843?s=20) from Jacob Coxon, an AI researcher who has just quit Anthropic and previously worked at OpenAI.\n\n\"Neither company is acting responsibly,\" he wrote.\n\n\"These will soon be superhuman systems that can hack anything, revolutionise any field overnight, and acquire real power and resources.\"\n\nOpenAI has been approached for comment.\n\nDame Wendy Hall, a computer scientist who advises the UN on AI, told the BBC she was \"shocked\" by Hubinger and Coxon's social media posts.\n\nShe told the World at One on BBC Radio Four some of it could be \"PR and marketing\" however, as Anthropic and OpenAI raced towards highly anticipated stock market debuts.\n\nBut she added: \"Why would someone want to say that? I would plead with investors not to invest in this company if that is their value system.\"\n\nThe resignation prompted Darren Jones, former chief secretary to the Treasury and chief secretary to Sir Keir Starmer, to write an open letter to Prime Minister Andy Burnham calling for a new multinational treaty for the safe development of AI.\n\nHe told the BBC governments had to come together to \"collaborate\" about what a treaty based on the development of superintelligence should look like.\n\n\"Unless governments take these warnings seriously enough and step up to it, the pace of development could mean that we end up with problems before we've started to look at whether it is an issue for us or not,\" he said.\n\nSeparately, [the Financial Times reported](https://www.ft.com/content/560e1c8b-f163-4fd6-b604-e905550ac870?syn-25a6b1a6=1) Anthropic withheld its latest model from the UK's AI Security Institute (AISI), one of the leading bodies in the world for assessing AI risk.\n\nAnthropic has declined to comment on the posts by its employees or the situation with the AISI.\n\nA Cabinet Office spokesperson did not comment on whether the latest model had been withheld from the AISI - instead saying it \"continues to collaborate closely with industry partners, including Anthropic, to make models safer\".\n\n## No plan for superintelligence\n\nIn his post, which has been viewed more than 10 million times, Hubinger said \"we really do earnestly believe\" AI poses a species-ending risk to humans.\n\n\"I believe Anthropic is trying its best, but we do not yet have a plan to solve alignment for superintelligence and are not clearly on track to,\" he added.\n\nHubinger works in AI alignment, which aims to build human ethical ideas and principles into the technology. In other words, it aims to keep it on track with what humans value.\n\nMany leading researchers say those attempts appear to be failing, as demonstrated by a string of incidents this summer where AI agents - AI systems that are allowed to operate autonomously - carried out cyber-attacks.\n\n[OpenAI](https://www.bbc.co.uk/news/articles/c3ek3gvdnj3o), [Anthropic](https://www.bbc.co.uk/news/articles/cz7dl7w8y7po) and [Meta](https://www.bbc.co.uk/news/articles/cx2kgdnyk2po) all disclosed hacks carried out by their AI tools.\n\n[In Anthropic's safety report from August](https://www-cdn.anthropic.com/f61d49fa5596956a5dec75fea0e973bf6a6a8378/Redacted%20Risk%20Report%20August%202026%20.pdf), it wrote there was a low risk of its models becoming misaligned with a hypothetical powerful organisation's desires, causing it to exploit or tamper with its systems.\n\nIt also said there was a similarly low risk of highly capable AI being able to \"perform automated research and development\" which could cause \"catastrophic harm initiated by the AI\". But it said it was \"less confident in this assessment\" than it was previously.\n\n\"We are seeing early signs of potential acceleration,\" it wrote.\n\nLeading figures in the AI field have been raising the alarm about the safety threat the tech poses for years, with [the heads of OpenAI, Google Deepmind and Anthropic saying as much in 2023](https://www.bbc.co.uk/news/uk-65746524).\n\nBut those warnings have become much more stark in recent weeks, as evidence emerges that firms may be struggling to control AI.\n\nEarlier this month, OpenAI's chief scientist Jakub Pachocki called for \"extreme caution\" over AI's progress, warning more intervention may be needed to ensure \"humans remain in control of the future\".\n\nMajor figures in the space have been calling for AI development to be slowed in recent months, including Anthropic bosses Dario Amodei and Jared Kaplan.\n\n[In an open letter signed by 1,300 staff members of AI firms](https://www.pacingthefrontier.com/), they called for the US government to \"support an international effort to develop the technical and governance tools needed to deliberately pace the frontier of automated AI development\".\n\n[What is AI and how does it work?](https://www.bbc.co.uk/news/technology-65855333)\n\n[AI will cure cancer in our lifetime, claims boss of UK chip giant](https://www.bbc.co.uk/news/articles/c0m39g7xzevo)\n\n[OpenAI chief scientist warns no-one is prepared for consequences of AI](https://www.bbc.co.uk/news/articles/cwyzrrd0kp7o)\n\n![Web Image](https://static.files.bbci.co.uk/bbcdotcom/web/20260907-085256-bea8b058c0-web-3.21.0/grey-placeholder.png)\n\n![A green promotional banner with black squares and rectangles forming pixels, moving in from the right. The text says: “Tech Decoded: The world’s biggest tech news in your inbox every Monday.”](https://ichef.bbci.co.uk/news/480/cpsprodpb/41d3/live/348b21e0-26a8-11f0-8f57-b7237f6a66e6.png.webp)\n\n[Sign up for our Tech Decoded newsletter](https://www.bbc.co.uk/newsletters/zxh6cxs) to follow the world's top tech stories and trends. [Outside the UK? Sign up here](https://cloud.email.bbc.com/techdecoded-newsletter-signup).\n\n[Cyber-security](https://www.bbc.com/news/topics/cz4pr2gd85qt)\n\n[Artificial intelligence](https://www.bbc.com/news/topics/ce1qrvleleqt)\n\n[Cyber-attacks](https://www.bbc.com/news/topics/cp3mvpdp1r2t)\n\n[Technology](https://www.bbc.com/future/tags/technology)\n\n### Grounding Provenance & Anchors\n| Citation Anchor | Section | Verbatim Evidence | Type |\n| :--- | :--- | :--- | :--- |\n| `^link-bbc.com-h1` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | Anthropic researcher believes more than 10% chance AI 'could kill all humans'... | `HEADING` |\n| `^link-bbc.com-p1` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | ![Web Image](https://static.files.bbci.co.uk/bbcdotcom/web/20260907-085256-bea8b058c0-web-... | `PARAGRAPH` |\n| `^link-bbc.com-p2` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | ![Getty Images Claude logo on a smartphone](https://ichef.bbci.co.uk/news/480/cpsprodpb/ca... | `PARAGRAPH` |\n| `^link-bbc.com-p3` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | Anthropic makes the AI tool Claude, which is used as a chatbot and as a tool to help codin... | `PARAGRAPH` |\n| `^link-bbc.com-p4` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | A top safety researcher at Anthropic has warned AI is advancing so quickly he believes the... | `PARAGRAPH` |\n| `^link-bbc.com-p5` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | Evan Hubinger said [in a post on X](https://x.com/EvanHub/status/2097497037956891126) the ... | `PARAGRAPH` |\n| `^link-bbc.com-p6` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | He did not spell out how he thought AI systems could in future result in humans being wipe... | `PARAGRAPH` |\n| `^link-bbc.com-p7` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | But his comments are the latest in a series of increasingly stark warnings about AI, with ... | `PARAGRAPH` |\n| `^link-bbc.com-p8` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | Hubinger's intervention was in response to [another post on X](https://x.com/hilbertspaess... | `PARAGRAPH` |\n| `^link-bbc.com-p9` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | \"These will soon be superhuman systems that can hack anything, revolutionise any field ove... | `PARAGRAPH` |\n| `^link-bbc.com-p10` | Anthropic researcher believes more than 10% chance AI 'could kill all humans' | Dame Wendy Hall, a computer scientist who advises the UN on AI, told the BBC she was \"shoc... | `PARAGRAPH` |\n| `^link-bbc.com-h12` | No plan for superintelligence | No plan for superintelligence... | `HEADING` |",
+  "iocs": {
+    "cves": [],
+    "ipv4_addresses": [],
+    "ipv6_addresses": [],
+    "sha256_hashes": [],
+    "sha1_hashes": [
+      "f61d49fa5596956a5dec75fea0e973bf6a6a8378"
+    ],
+    "md5_hashes": [],
+    "domains": [
+      "cloud.email.bbc.com",
+      "ichef.bbci.co.uk",
+      "static.files.bbci.co.uk",
+      "www-cdn.anthropic.com",
+      "bbc.co.uk",
+      "bbc.com",
+      "ft.com",
+      "pacingthefrontier.com",
+      "x.com"
+    ],
+    "urls": [
+      "https://cloud.email.bbc.com/techdecoded-newsletter-signup",
+      "https://ichef.bbci.co.uk/news/480/cpsprodpb/41d3/live/348b21e0-26a8-11f0-8f57-b7237f6a66e6.png.webp",
+      "https://ichef.bbci.co.uk/news/480/cpsprodpb/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg.webp",
+      "https://static.files.bbci.co.uk/bbcdotcom/web/20260907-085256-bea8b058c0-web-3.21.0/grey-placeholder.png",
+      "https://www-cdn.anthropic.com/f61d49fa5596956a5dec75fea0e973bf6a6a8378/Redacted%20Risk%20Report%20August%202026%20.pdf",
+      "https://www.bbc.co.uk/news/articles/c0m39g7xzevo",
+      "https://www.bbc.co.uk/news/articles/c3ek3gvdnj3o",
+      "https://www.bbc.co.uk/news/articles/cwyzrrd0kp7o",
+      "https://www.bbc.co.uk/news/articles/cx2kgdnyk2po",
+      "https://www.bbc.co.uk/news/articles/cz7dl7w8y7po",
+      "https://www.bbc.co.uk/news/technology-65855333",
+      "https://www.bbc.co.uk/news/uk-65746524",
+      "https://www.bbc.co.uk/newsletters/zxh6cxs",
+      "https://www.bbc.com/future/tags/technology",
+      "https://www.bbc.com/news/topics/ce1qrvleleqt",
+      "https://www.bbc.com/news/topics/cp3mvpdp1r2t",
+      "https://www.bbc.com/news/topics/cz4pr2gd85qt",
+      "https://www.ft.com/content/560e1c8b-f163-4fd6-b604-e905550ac870?syn-25a6b1a6=1",
+      "https://www.pacingthefrontier.com/",
+      "https://x.com/EvanHub/status/2097497037956891126",
+      "https://x.com/hilbertspaess/status/2097476196791709843?s=20"
+    ],
+    "mitre_attack_ids": [],
+    "threat_actors": [],
+    "total_iocs_found": 0
+  },
+  "grounding_sources": [
+    {
+      "id": "link-bbc.com-h1",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "anchor_type": "HEADING",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p1",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "![Web Image](https://static.files.bbci.co.uk/bbcdotcom/web/20260907-085256-bea8b058c0-web-3.21.0/grey-placeholder.png)",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p2",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "![Getty Images Claude logo on a smartphone](https://ichef.bbci.co.uk/news/480/cpsprodpb/cace/live/40c59310-ac2a-11f1-9bd9-7b7da208bd5c.jpg.webp)",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p3",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "Anthropic makes the AI tool Claude, which is used as a chatbot and as a tool to help coding",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p4",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "A top safety researcher at Anthropic has warned AI is advancing so quickly he believes there is a greater than 10% chance it \"could kill all humans\" w",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p5",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "Evan Hubinger said [in a post on X](https://x.com/EvanHub/status/2097497037956891126) the risk from the models which currently exist was \"low\" but he ",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p6",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "He did not spell out how he thought AI systems could in future result in humans being wiped out.",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p7",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "But his comments are the latest in a series of increasingly stark warnings about AI, with the debate shifting from whether it truly poses a risk to ho",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p8",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "Hubinger's intervention was in response to [another post on X](https://x.com/hilbertspaess/status/2097476196791709843?s=20) from Jacob Coxon, an AI re",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p9",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "\"These will soon be superhuman systems that can hack anything, revolutionise any field overnight, and acquire real power and resources.\"",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-p10",
+      "section": "Anthropic researcher believes more than 10% chance AI 'could kill all humans'",
+      "extracted_verbatim": "Dame Wendy Hall, a computer scientist who advises the UN on AI, told the BBC she was \"shocked\" by Hubinger and Coxon's social media posts.",
+      "anchor_type": "PARAGRAPH",
+      "confidence": 0.95
+    },
+    {
+      "id": "link-bbc.com-h12",
+      "section": "No plan for superintelligence",
+      "extracted_verbatim": "No plan for superintelligence",
+      "anchor_type": "HEADING",
+      "confidence": 0.95
+    }
+  ],
+  "md_file_path": "/home/subham/Documents/SIH-current/storage/links/standalone/bbc.com_news_articles_ckgwy1k42w4o_context.md",
+  "json_file_path": null,
+  "execution_time_ms": 21262,
+  "success": true,
+  "error_message": null
+}

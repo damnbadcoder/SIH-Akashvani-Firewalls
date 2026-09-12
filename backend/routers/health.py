@@ -24,5 +24,5 @@ def health_check(db: Session = Depends(get_db)):
         },
         "supported_file_formats_count": len(ALL_SUPPORTED_EXTENSIONS),
         "supported_formats": sorted(list(ALL_SUPPORTED_EXTENSIONS)),
-        "pipelines": ["text", "audio", "video", "image"],
+        "pipelines": ["text", "audio", "video", "image", "link"],
     }

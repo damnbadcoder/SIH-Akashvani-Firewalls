@@ -123,10 +123,11 @@ class BackendEndToEndTestSuite(unittest.TestCase):
         self.assertTrue(preview_file.exists(), f"Preview.md was not found at {preview_file}")
         self.assertGreater(preview_file.stat().st_size, 0)
 
-        # Verify DB records
+        # Verify DB records (2 uploaded files + 1 scraped link record)
         session_rec = self.db.query(SessionRecord).filter(SessionRecord.id == session_id).first()
         self.assertIsNotNone(session_rec)
-        self.assertEqual(len(session_rec.files), 2)
+        self.assertEqual(len([f for f in session_rec.files if f.file_type != "link"]), 2)
+        self.assertGreaterEqual(len(session_rec.files), 2)
         self.assertGreaterEqual(len(session_rec.previews), 1)
 
         print(f"[Test 4] Phase 1 & 2 passed: Session {session_id} created, Preview.md stored on disk & DB.")

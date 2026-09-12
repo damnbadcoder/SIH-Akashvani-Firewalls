@@ -4,16 +4,17 @@ import csv
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 # Pipeline imports
 try:
-    from pipelines import ingest_text, ingest_image, ingest_audio, ingest_video
+    from pipelines import ingest_text, ingest_image, ingest_audio, ingest_video, ingest_link
 except ImportError:
     ingest_text = None
     ingest_image = None
     ingest_audio = None
     ingest_video = None
+    ingest_link = None
 
 # 46 Supported File Formats categorized by media pipeline
 DOC_EXTS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".csv", ".tsv", ".txt", ".log", ".md", ".markdown", ".rtf"}
@@ -280,5 +281,50 @@ class PipelineRouterService:
         markdown = f"### Source Document: {filename}\n\n{content}"
         citations.append({"id": f"doc-{filename}", "kind": "file", "label": filename})
         return markdown, citations, meta
+
+    @staticmethod
+    def process_link_into_context(url: str, output_dir: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Executes link_pipeline to scrape a web document and extract grounded context.
+        """
+        if ingest_link:
+            r = ingest_link(url, output_dir=output_dir, save_outputs=True)
+            citations = []
+            if getattr(r, "grounding_sources", None):
+                for anchor in r.grounding_sources:
+                    citations.append({
+                        "id": getattr(anchor, "id", f"link-{len(citations)+1}"),
+                        "kind": "link",
+                        "label": f"[{r.metadata.domain}] {getattr(anchor, 'extracted_verbatim', '')[:100]}",
+                    })
+            else:
+                citations.append({
+                    "id": f"link-{r.metadata.domain}",
+                    "kind": "link",
+                    "label": f"[{r.metadata.domain}] {r.metadata.title}",
+                })
+
+            return {
+                "markdown": r.clean_markdown or "",
+                "citations": citations,
+                "metadata": r.metadata.model_dump(),
+                "iocs": r.iocs.model_dump() if hasattr(r, "iocs") else {},
+                "md_file_path": r.md_file_path,
+                "json_file_path": r.json_file_path,
+                "pipeline": "link",
+                "success": r.success,
+                "error_message": r.error_message,
+            }
+        return {
+            "markdown": f"### Web Link Source\nURL: {url}",
+            "citations": [{"id": f"link-{url[:30]}", "kind": "link", "label": url}],
+            "metadata": {"url": url},
+            "iocs": {},
+            "md_file_path": None,
+            "json_file_path": None,
+            "pipeline": "link",
+            "success": False,
+            "error_message": "link_pipeline module not loaded",
+        }
 
 router_service = PipelineRouterService()

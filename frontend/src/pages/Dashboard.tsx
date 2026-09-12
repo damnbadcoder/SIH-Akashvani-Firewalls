@@ -11,6 +11,8 @@ import {
   regenerateDeliverable,
   autosavePreviewDraft,
   fetchUserHistory,
+  scrapeLink,
+  triggerFileDownload,
 } from "../lib/mock";
 import {
   AUDIENCE_CATEGORIES,
@@ -31,6 +33,7 @@ import type {
   PlatformPreview,
   SensitiveDataFlag,
   User,
+  ScrapedLinkData,
 } from "../lib/types";
 
 function getAccountHistoryKey(email?: string): string {
@@ -68,6 +71,18 @@ export default function Dashboard() {
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [links, setLinks] = useState("");
+  const [linkInput, setLinkInput] = useState("");
+  const [scrapedLinks, setScrapedLinks] = useState<ScrapedLinkData[]>([]);
+  const [scrapingLink, setScrapingLink] = useState(false);
+  const [scrapingError, setScrapingError] = useState("");
+  const [linksInputMode, setLinksInputMode] = useState<"card" | "raw">("card");
+  const [viewingArtifact, setViewingArtifact] = useState<{
+    type: "md" | "json";
+    title: string;
+    filename: string;
+    content: string;
+  } | null>(null);
+  const [copiedArtifact, setCopiedArtifact] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [isOrganisation, setIsOrganisation] = useState<boolean>(() => {
@@ -250,6 +265,74 @@ export default function Dashboard() {
         }
       }
       return next;
+    });
+  }
+
+  async function handleScrapeSingleLink(urlToScrape?: string) {
+    const targetUrl = (urlToScrape || linkInput).trim();
+    if (!targetUrl) return;
+
+    setScrapingError("");
+    setScrapingLink(true);
+
+    try {
+      const data = await scrapeLink(targetUrl, sessionId || undefined);
+      if (data.status === "error") {
+        setScrapingError(data.errorMessage || "Failed to scrape link context.");
+      }
+
+      setScrapedLinks((prev) => {
+        const filtered = prev.filter((item) => item.url.toLowerCase() !== data.url.toLowerCase());
+        return [data, ...filtered];
+      });
+
+      // Synchronize links string
+      setLinks((prev) => {
+        const existing = prev.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (!existing.includes(data.url)) {
+          return [...existing, data.url].join("\n");
+        }
+        return prev;
+      });
+
+      setLinkInput("");
+    } catch (err: any) {
+      setScrapingError(err?.message || "Error executing link_pipeline on target website.");
+    } finally {
+      setScrapingLink(false);
+    }
+  }
+
+  async function handleScrapeAllRawLinks() {
+    const rawList = links.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (rawList.length === 0) return;
+
+    setScrapingError("");
+    setScrapingLink(true);
+
+    try {
+      const results: ScrapedLinkData[] = [];
+      for (const u of rawList) {
+        const d = await scrapeLink(u, sessionId || undefined);
+        results.push(d);
+      }
+      setScrapedLinks(results);
+      setLinksInputMode("card");
+    } catch (err: any) {
+      setScrapingError(err?.message || "Batch link scraping error.");
+    } finally {
+      setScrapingLink(false);
+    }
+  }
+
+  function handleRemoveScrapedLink(url: string) {
+    setScrapedLinks((prev) => prev.filter((item) => item.url !== url));
+    setLinks((prev) => {
+      return prev
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && l !== url)
+        .join("\n");
     });
   }
 
@@ -785,7 +868,198 @@ export default function Dashboard() {
                 )}
               </div>
             )}
-            {sourceTab === "links" && <textarea className="source-text" placeholder={"https://example.org/threat-report\nhttps://news.example.com/breach"} value={links} onChange={(e) => setLinks(e.target.value)} rows={6} />}
+            {sourceTab === "links" && (
+              <div className="link-pipeline-box">
+                <div className="link-mode-toggle">
+                  <button onClick={() => setLinksInputMode((m) => (m === "card" ? "raw" : "card"))}>
+                    {linksInputMode === "card" ? "Switch to Bulk Raw URLs" : "Switch to Link Card Inspector"}
+                  </button>
+                </div>
+
+                {linksInputMode === "card" ? (
+                  <>
+                    <div className="link-input-row">
+                      <input
+                        type="url"
+                        placeholder="https://news.example.com/cyber-threat-report"
+                        value={linkInput}
+                        onChange={(e) => setLinkInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !scrapingLink) {
+                            e.preventDefault();
+                            handleScrapeSingleLink();
+                          }
+                        }}
+                        disabled={scrapingLink}
+                      />
+                      <button
+                        className="primary sm"
+                        onClick={() => handleScrapeSingleLink()}
+                        disabled={scrapingLink || !linkInput.trim()}
+                      >
+                        {scrapingLink ? "Scraping..." : "Scrape & Extract Context"}
+                      </button>
+                    </div>
+
+                    {scrapingLink && (
+                      <div className="scraping-banner">
+                        <div className="scraping-spinner" />
+                        <span>
+                          <strong>link_pipeline active:</strong> Scraping website, removing boilerplate, extracting metadata & IOCs...
+                        </span>
+                      </div>
+                    )}
+
+                    {scrapingError && (
+                      <div className="alert danger sm" style={{ margin: "4px 0" }}>
+                        {scrapingError}
+                      </div>
+                    )}
+
+                    {scrapedLinks.length === 0 && !scrapingLink && (
+                      <p className="muted" style={{ fontSize: "12px", marginTop: "4px" }}>
+                        Provide public threat advisories, blog posts, news articles, or bulletin URLs. The <code>link_pipeline</code> will automatically scrape content, extract IOCs, and generate normalized <code>.md</code> and <code>.json</code> metadata files.
+                      </p>
+                    )}
+
+                    {scrapedLinks.length > 0 && (
+                      <div className="scraped-cards-list">
+                        {scrapedLinks.map((item) => {
+                          const cveCount = item.iocs?.cves?.length || 0;
+                          const ipCount = item.iocs?.ipv4_addresses?.length || 0;
+                          const actorCount = item.iocs?.threat_actors?.length || 0;
+
+                          return (
+                            <div key={item.url} className="scraped-card">
+                              <div className="scraped-card-header">
+                                <div className="scraped-card-title-group">
+                                  <span className="scraped-domain-badge">
+                                    🌐 {item.domain || "Web Source"}
+                                  </span>
+                                  <div className="scraped-card-title" title={item.title}>
+                                    {item.title}
+                                  </div>
+                                  <div className="scraped-card-meta-line">
+                                    {item.author ? `By ${item.author} · ` : ""}
+                                    {item.published_time ? `Published ${item.published_time.slice(0, 10)} · ` : ""}
+                                    <a href={item.url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+                                      Visit Source ↗
+                                    </a>
+                                  </div>
+                                </div>
+                                <button
+                                  className="scraped-btn-remove"
+                                  title="Remove link"
+                                  onClick={() => handleRemoveScrapedLink(item.url)}
+                                >
+                                  ×
+                                </button>
+                              </div>
+
+                              {item.description && (
+                                <div className="scraped-card-desc">{item.description}</div>
+                              )}
+
+                              <div className="scraped-card-tags">
+                                <span className="scraped-tag-stat">
+                                  📝 {item.word_count?.toLocaleString() || 0} words
+                                </span>
+                                {cveCount > 0 && (
+                                  <span className="scraped-tag-cve">
+                                    {cveCount} CVE{cveCount > 1 ? "s" : ""}: {item.iocs.cves?.slice(0, 2).join(", ")}
+                                  </span>
+                                )}
+                                {ipCount > 0 && (
+                                  <span className="scraped-tag-ip">
+                                    {ipCount} IP{ipCount > 1 ? "s" : ""}
+                                  </span>
+                                )}
+                                {actorCount > 0 && (
+                                  <span className="scraped-tag-actor">
+                                    Adversary: {item.iocs.threat_actors?.slice(0, 1).join(", ")}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="scraped-card-actions">
+                                <button
+                                  className="scraped-btn-action"
+                                  onClick={() =>
+                                    setViewingArtifact({
+                                      type: "md",
+                                      title: item.title,
+                                      filename: item.md_filename || `${item.domain}_context.md`,
+                                      content: item.markdown,
+                                    })
+                                  }
+                                >
+                                  📄 View .md Context
+                                </button>
+                                <button
+                                  className="scraped-btn-action"
+                                  onClick={() =>
+                                    setViewingArtifact({
+                                      type: "json",
+                                      title: item.title,
+                                      filename: item.json_filename || `${item.domain}_metadata.json`,
+                                      content: JSON.stringify(item.metadata, null, 2),
+                                    })
+                                  }
+                                >
+                                  📋 View .json Metadata
+                                </button>
+                                <button
+                                  className="scraped-btn-action"
+                                  onClick={() =>
+                                    triggerFileDownload(
+                                      item.markdown,
+                                      item.md_filename || `${item.domain}_context.md`,
+                                      "text/markdown"
+                                    )
+                                  }
+                                >
+                                  ⬇️ .md
+                                </button>
+                                <button
+                                  className="scraped-btn-action"
+                                  onClick={() =>
+                                    triggerFileDownload(
+                                      JSON.stringify(item.metadata, null, 2),
+                                      item.json_filename || `${item.domain}_metadata.json`,
+                                      "application/json"
+                                    )
+                                  }
+                                >
+                                  ⬇️ .json
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <textarea
+                      className="source-text"
+                      placeholder={"https://example.org/threat-report\nhttps://news.example.com/breach"}
+                      value={links}
+                      onChange={(e) => setLinks(e.target.value)}
+                      rows={6}
+                    />
+                    <button
+                      className="ghost sm"
+                      style={{ alignSelf: "flex-start", marginTop: "6px" }}
+                      onClick={handleScrapeAllRawLinks}
+                      disabled={scrapingLink || !links.trim()}
+                    >
+                      {scrapingLink ? "Scraping all links..." : "⚡ Scrape All Links via link_pipeline"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <h2 className="col-title">2 · Output types <span className="muted">({selected.size} selected)</span></h2>
@@ -1062,6 +1336,63 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {viewingArtifact && (
+        <div
+          className="artifact-modal-overlay"
+          onClick={() => setViewingArtifact(null)}
+        >
+          <div
+            className="artifact-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="artifact-modal-header">
+              <div className="artifact-modal-title">
+                <span>{viewingArtifact.type === "md" ? "📄 Context Markdown" : "📋 Metadata JSON"}</span>
+                <span className="muted" style={{ fontSize: "12px", fontFamily: "var(--mono)" }}>
+                  ({viewingArtifact.filename})
+                </span>
+              </div>
+              <div className="artifact-modal-controls">
+                <button
+                  className="ghost sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(viewingArtifact.content);
+                    setCopiedArtifact(true);
+                    setTimeout(() => setCopiedArtifact(false), 2000);
+                  }}
+                >
+                  {copiedArtifact ? "✓ Copied!" : "Copy"}
+                </button>
+                <button
+                  className="ghost sm"
+                  onClick={() =>
+                    triggerFileDownload(
+                      viewingArtifact.content,
+                      viewingArtifact.filename,
+                      viewingArtifact.type === "md" ? "text/markdown" : "application/json"
+                    )
+                  }
+                >
+                  ⬇️ Download
+                </button>
+                <button
+                  className="ghost sm"
+                  onClick={() => setViewingArtifact(null)}
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+            <div className="artifact-modal-body">
+              <pre className="artifact-modal-code">
+                <code>{viewingArtifact.content}</code>
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

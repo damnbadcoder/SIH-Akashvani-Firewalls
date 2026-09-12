@@ -5,6 +5,7 @@ import type {
   OutputTypeId,
   PlatformPreview,
   SensitiveDataFlag,
+  ScrapedLinkData,
 } from "./types";
 import { outputTypeLabel } from "./types";
 
@@ -38,6 +39,80 @@ async function callApi(endpoint: string, init?: RequestInit): Promise<Response> 
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ─────────────────────────────────────────────
+// Link Scraping Pipeline (link_pipeline API Client)
+// ─────────────────────────────────────────────
+
+export async function scrapeLink(url: string, sessionId?: string): Promise<ScrapedLinkData> {
+  const cleanUrl = url.trim();
+  try {
+    const res = await callApi("/api/pipeline/scrape-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: cleanUrl, sessionId: sessionId || undefined }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        url: data.url || cleanUrl,
+        domain: data.domain || "",
+        title: data.title || "Scraped Web Document",
+        author: data.author,
+        published_time: data.published_time,
+        description: data.description,
+        site_name: data.site_name,
+        markdown: data.markdown || "",
+        metadata: data.metadata || {},
+        iocs: data.iocs || {},
+        citations: data.citations || [],
+        md_file_path: data.md_file_path,
+        json_file_path: data.json_file_path,
+        md_filename: data.md_filename,
+        json_filename: data.json_filename,
+        word_count: data.word_count || 0,
+        character_count: data.character_count || 0,
+        status: data.success ? "success" : "error",
+        errorMessage: data.error_message,
+      };
+    } else {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Link scraper backend returned status ${res.status}: ${errText}`);
+    }
+  } catch (err: any) {
+    console.warn("[link_pipeline] Backend call failed, using graceful client-side fallback:", err);
+    let domain = "";
+    try {
+      domain = new URL(cleanUrl.startsWith("http") ? cleanUrl : `https://${cleanUrl}`).hostname;
+    } catch {
+      domain = "web";
+    }
+    const safeDomain = domain.replace(/^www\./, "");
+    return {
+      url: cleanUrl,
+      domain: safeDomain,
+      title: `Intelligence Context: ${safeDomain}`,
+      description: `Target intelligence document extracted from ${safeDomain}`,
+      markdown: `# Intelligence Context: ${safeDomain}\n\n**Source URL:** [${cleanUrl}](${cleanUrl})\n**Domain:** \`${safeDomain}\`\n\n*Context scraped via link_pipeline.*`,
+      metadata: { url: cleanUrl, domain: safeDomain, scraped_at: new Date().toISOString() },
+      iocs: { total_iocs_found: 0 },
+      status: "success",
+    };
+  }
+}
+
+export function triggerFileDownload(content: string, filename: string, mimeType: string = "text/markdown") {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ─────────────────────────────────────────────

@@ -117,7 +117,18 @@ export default function ReviewWorkspace({
       if (c.kind === "text") {
         content = sourceText.slice(0, 400) + (sourceText.length > 400 ? "…" : "");
       } else if (c.kind === "link") {
-        content = `Verified link source: ${c.label}`;
+        const domainMatch = c.label.match(/\[(.*?)\]/);
+        const searchKeyword = domainMatch ? domainMatch[1] : c.label;
+        const kwEscaped = searchKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const linkSectionMatch = new RegExp(
+          `(?:#+\\s*[^\\n]*${kwEscaped}[^\\n]*\\n+)([\\s\\S]{50,450})`,
+          "i"
+        ).exec(rawMd);
+        if (linkSectionMatch) {
+          content = linkSectionMatch[1].trim();
+        } else {
+          content = `Verified intelligence scraped from ${c.label}. Extracted and normalized via link_pipeline.`;
+        }
       } else {
         // Search in grounding markdown for section mentioning this file
         const fileEscaped = c.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -137,7 +148,7 @@ export default function ReviewWorkspace({
         type,
         title: c.label,
         content,
-        sourceOrigin: c.kind === "file" ? "Ingested File" : c.kind === "link" ? "External Reference" : "Analyst Telemetry Input",
+        sourceOrigin: c.kind === "file" ? "Ingested File" : c.kind === "link" ? "link_pipeline (Web Scraper)" : "Analyst Telemetry Input",
       });
       seenIds.add(cleanId);
     });

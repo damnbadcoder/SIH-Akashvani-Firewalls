@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 
 import uuid
@@ -22,6 +22,7 @@ from backend.schemas.pipeline import (
     PlatformPreview,
     Citation,
 )
+from backend.config import settings
 from backend.services.storage_service import storage_service
 from backend.services.router_service import router_service, ALL_SUPPORTED_EXTENSIONS
 from backend.services.context_service import enhancer_1_node
@@ -70,12 +71,13 @@ async def generate_plan_endpoint(
     is_organisation = False
     uploaded_files: List[Tuple[str, bytes]] = []
     parameters: Dict[str, Any] = {}
+    file_ids: List[str] = []
 
     user_email = ""
     user_id = ""
     existing_session_id = ""
 
-    if "multipart/form-data" in content_type:
+    if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type or "form" in content_type:
         form = await request.form()
         source_text = str(form.get("sourceText", "") or "")
         links_str = str(form.get("sourceLinks", "[]") or "[]")
@@ -89,12 +91,18 @@ async def generate_plan_endpoint(
         try:
             source_links = json.loads(links_str) if isinstance(links_str, str) else []
         except Exception:
-            source_links = []
+            source_links = [links_str] if links_str and links_str != "[]" else []
 
         try:
             outputs_raw = json.loads(outputs_str) if isinstance(outputs_str, str) else []
         except Exception:
             outputs_raw = []
+
+        file_ids_str = str(form.get("file_ids", "[]") or form.get("fileIds", "[]") or "[]")
+        try:
+            file_ids = json.loads(file_ids_str) if isinstance(file_ids_str, str) else []
+        except Exception:
+            file_ids = []
 
         for field_name, value in form.multi_items():
             if field_name == "files" and hasattr(value, "filename") and value.filename:
@@ -102,7 +110,10 @@ async def generate_plan_endpoint(
                 uploaded_files.append((value.filename, file_bytes))
 
     else:
-        payload = await request.json()
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
         source_text = payload.get("sourceText") or payload.get("content_md") or payload.get("source_text") or ""
         source_links = payload.get("sourceLinks") or payload.get("source_links") or []
         outputs_raw = payload.get("outputs") or []
@@ -243,6 +254,48 @@ async def generate_plan_endpoint(
             citations.append(Citation(id=c["id"], label=c["label"], kind=c.get("kind", "file")))
             raw_citations_list.append(c)
 
+    # Process incoming web links through link_pipeline
+    scraped_links_records: List[Dict[str, Any]] = []
+    for l_idx, link_url in enumerate(source_links, 1):
+        if not link_url or not str(link_url).strip():
+            continue
+        clean_url = str(link_url).strip()
+        link_out_dir = str(settings.STORAGE_DIR / "links" / session.id)
+        scraped_link = router_service.process_link_into_context(clean_url, output_dir=link_out_dir)
+        scraped_links_records.append(scraped_link)
+
+        link_md = scraped_link.get("markdown", "")
+        if link_md:
+            extracted_md_sections.append(link_md)
+
+        link_meta = scraped_link.get("metadata", {})
+        domain = link_meta.get("domain", "web")
+        title = link_meta.get("title", clean_url)
+        char_count = link_meta.get("character_count", len(link_md))
+
+        # Save FileRecord for scraped link
+        file_rec = FileRecord(
+            session_id=session.id,
+            filename=f"{domain} - {title[:80]}",
+            file_type="link",
+            file_format=".url",
+            file_size=char_count,
+            file_path=scraped_link.get("md_file_path"),
+            sha256=link_meta.get("sha256_checksum"),
+            extracted_markdown=link_md,
+            extracted_json=json.dumps(link_meta),
+        )
+        db.add(file_rec)
+
+        link_cit_id = f"link-{l_idx}"
+        citations.append(Citation(id=link_cit_id, label=f"[{domain}] {title[:70]}", kind="link"))
+        raw_citations_list.append({"id": link_cit_id, "label": f"[{domain}] {title[:70]}", "kind": "link"})
+
+        for c in scraped_link.get("citations", []):
+            if c.get("id") != link_cit_id:
+                citations.append(Citation(id=c["id"], label=c["label"], kind=c.get("kind", "link")))
+                raw_citations_list.append(c)
+
     # Convergence: Merge all pipeline outputs into foundational Context (md + json)
     if extracted_md_sections:
         if source_text and source_text.strip():
@@ -259,12 +312,9 @@ async def generate_plan_endpoint(
         citations.append(Citation(id="src-1", label="Raw Telemetry & Advisory Input", kind="text"))
         raw_citations_list.append({"id": "src-1", "label": "Raw Telemetry & Advisory Input", "kind": "text"})
 
-    for l in source_links:
-        citations.append(Citation(id=f"src-{len(citations)+1}", label=l, kind="link"))
-        raw_citations_list.append({"id": f"src-{len(citations)}", "label": l, "kind": "link"})
-
     initial_metadata_json = {
         "source_links": source_links,
+        "scraped_links_count": len(scraped_links_records),
         "files_count": len(uploaded_files),
         "output_categories": selected_keys,
     }
@@ -489,3 +539,108 @@ async def generate_deliverable_endpoint(
     result["status"] = "completed"
 
     return result
+
+
+@router.post("/api/pipeline/scrape-link")
+@router.post("/api/link-pipeline/scrape")
+async def scrape_link_endpoint(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Independent Web Link Scraping Pipeline Endpoint.
+    Ingests target URL, scrapes webpage content, extracts IOCs & metadata,
+    and returns both the normalized Markdown (.md) and structured metadata (.json) paths/contents.
+    """
+    content_type = request.headers.get("Content-Type", "")
+    url = ""
+    session_id = None
+
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        url = str(form.get("url", "") or "")
+        session_id = form.get("sessionId") or form.get("session_id")
+    else:
+        try:
+            body = await request.json()
+            url = str(body.get("url", "") or "")
+            session_id = body.get("sessionId") or body.get("session_id")
+        except Exception:
+            url = ""
+
+    url = url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="A valid 'url' parameter is required.")
+
+    # Route through link_pipeline
+    output_dir = str(settings.STORAGE_DIR / "links" / session_id) if session_id else str(settings.STORAGE_DIR / "links" / "standalone")
+    res = router_service.process_link_into_context(url, output_dir=output_dir)
+
+    md_path = res.get("md_file_path")
+    json_path = res.get("json_file_path")
+    md_name = Path(md_path).name if md_path else None
+    json_name = Path(json_path).name if json_path else None
+
+    # Persist in DB FileRecord if session exists
+    if session_id and res.get("success"):
+        domain = res.get("metadata", {}).get("domain", "web")
+        title = res.get("metadata", {}).get("title", url)[:80]
+        char_count = res.get("metadata", {}).get("character_count", len(res.get("markdown", "")))
+        file_rec = FileRecord(
+            session_id=str(session_id),
+            filename=f"{domain} - {title}",
+            file_type="link",
+            file_format=".url",
+            file_size=char_count,
+            file_path=md_path,
+            sha256=res.get("metadata", {}).get("sha256_checksum"),
+            extracted_markdown=res.get("markdown"),
+            extracted_json=json.dumps(res.get("metadata", {})),
+        )
+        db.add(file_rec)
+        db.commit()
+
+    return JSONResponse({
+        "success": res.get("success", False),
+        "url": url,
+        "domain": res.get("metadata", {}).get("domain", ""),
+        "title": res.get("metadata", {}).get("title", "Web Document"),
+        "author": res.get("metadata", {}).get("author"),
+        "published_time": res.get("metadata", {}).get("published_time"),
+        "description": res.get("metadata", {}).get("description"),
+        "markdown": res.get("markdown", ""),
+        "metadata": res.get("metadata", {}),
+        "iocs": res.get("iocs", {}),
+        "citations": res.get("citations", []),
+        "md_file_path": md_path,
+        "json_file_path": json_path,
+        "md_filename": md_name,
+        "json_filename": json_name,
+        "word_count": res.get("metadata", {}).get("word_count", 0),
+        "character_count": res.get("metadata", {}).get("character_count", 0),
+        "error_message": res.get("error_message"),
+    })
+
+
+@router.get("/api/pipeline/download-link-artifact")
+async def download_link_artifact(path: str):
+    """
+    Allows downloading or viewing the generated .md and .json files safely.
+    """
+    target = Path(path).resolve()
+    storage_root = settings.STORAGE_DIR.resolve()
+    ingest_root = (settings.BASE_DIR / "ingestion_outputs").resolve()
+
+    if not (target.is_relative_to(storage_root) or target.is_relative_to(ingest_root)):
+        raise HTTPException(status_code=403, detail="Forbidden file access path.")
+
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Requested link context artifact not found.")
+
+    media_type = "application/json" if target.suffix == ".json" else "text/markdown; charset=utf-8"
+    return FileResponse(
+        path=str(target),
+        media_type=media_type,
+        filename=target.name,
+    )
+

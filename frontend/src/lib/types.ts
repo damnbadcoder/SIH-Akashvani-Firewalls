@@ -201,3 +201,34 @@ export interface Generation {
   groundingJson?: any;
   isOrganisation?: boolean;
 }
+
+export interface ScrapedLinkData {
+  url: string;
+  domain: string;
+  title: string;
+  author?: string;
+  published_time?: string;
+  description?: string;
+  site_name?: string;
+  markdown: string;
+  metadata: any;
+  iocs: {
+    cves?: string[];
+    ipv4_addresses?: string[];
+    ipv6_addresses?: string[];
+    sha256_hashes?: string[];
+    mitre_attack_ids?: string[];
+    threat_actors?: string[];
+    total_iocs_found?: number;
+  };
+  citations?: Citation[];
+  md_file_path?: string;
+  json_file_path?: string;
+  md_filename?: string;
+  json_filename?: string;
+  word_count?: number;
+  character_count?: number;
+  status: "idle" | "scraping" | "success" | "error";
+  errorMessage?: string;
+}
+
