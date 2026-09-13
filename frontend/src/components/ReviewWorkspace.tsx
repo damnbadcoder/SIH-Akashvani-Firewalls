@@ -211,18 +211,29 @@ export default function ReviewWorkspace({
   return (
     <div className="review-workspace">
       {/* Top Review Stage Bar */}
+      <div className="review-stage-banner">
+        <div>
+          <span className="eyebrow">Step 02 · Verify</span>
+          <h1>Review every claim before it ships</h1>
+          <p>Trace citations back to the source, resolve sensitive items, then finalize your approved deliverables.</p>
+        </div>
+        <div className="review-stage-status">
+          <span className="workspace-status-dot" aria-hidden="true" />
+          <span>{selected.size} draft{selected.size === 1 ? "" : "s"} awaiting approval</span>
+        </div>
+      </div>
+
       <div className="review-topbar">
         <div className="review-topbar-left">
           <button
             type="button"
             className="ghost sm back-btn"
             onClick={onBackToParameters}
-            title="Return to Step 1 & 2 configuration"
           >
             ← Back to parameters
           </button>
           <div className="review-title-group">
-            <h2 className="review-heading">Dual-Pane Provenance Review</h2>
+            <h2 className="review-heading">Provenance review</h2>
             <span className="review-subtitle">
               {currentPreviewId ? outputTypeLabel(currentPreviewId) : "Deliverable Preview"}
             </span>

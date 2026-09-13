@@ -1156,6 +1156,25 @@ export default function Dashboard() {
       </aside>
 
       <div className={`workspace ${isReviewMode ? "review-layout" : ""}`}>
+        {!isReviewMode && (
+          <section className="workspace-intro" aria-labelledby="workspace-title">
+            <div className="workspace-intro-copy">
+              <span className="eyebrow">Content transformation workspace</span>
+              <h1 id="workspace-title">
+                {gen ? "Your deliverables are ready" : "Create a trusted, channel-ready brief"}
+              </h1>
+              <p>
+                {gen
+                  ? "Review, edit, translate, and export every approved deliverable from this run."
+                  : "Bring in source material, select the formats you need, and approve a grounded draft before publishing."}
+              </p>
+            </div>
+            <div className="workspace-intro-status" aria-label="Workspace status">
+              <span className="workspace-status-dot" aria-hidden="true" />
+              <span>{gen ? `${gen.deliverables.length} deliverable${gen.deliverables.length === 1 ? "" : "s"} available` : "Draft workspace ready"}</span>
+            </div>
+          </section>
+        )}
         {isReviewMode ? (
           <ReviewWorkspace
             currentPreviewId={currentPreviewId}
@@ -1187,9 +1206,21 @@ export default function Dashboard() {
         ) : (
           <>
             <main className="col-input">
-          <h2 className="col-title">1 · Source content</h2>
-          <div className="card">
-            <div className="segmented full" style={{ marginBottom: "14px" }}>
+          <div className="section-title-row">
+            <div>
+              <span className="section-kicker">Step 01</span>
+              <h2 className="col-title">Source material</h2>
+            </div>
+            <span className="section-helper">Add files or trusted links</span>
+          </div>
+          <div className="card source-card">
+            <div className="card-heading">
+              <div>
+                <h3>Build your source set</h3>
+                <p>Attach intelligence documents, telemetry, or reference links.</p>
+              </div>
+            </div>
+            <div className="segmented full source-tabs" style={{ marginBottom: "14px" }}>
               {(["files", "links"] as const).map((tab) => (
                 <button key={tab} className={sourceTab === tab ? "on" : ""} onClick={() => setSourceTab(tab)}>
                   {tab === "files" ? "Files" : "Links"}
@@ -1446,23 +1477,37 @@ export default function Dashboard() {
 
           {!gen && (
             <>
-              <h2 className="col-title">2 · Output types <span className="muted">({selected.size} selected)</span></h2>
-              <div className="card output-grid">
-                {OUTPUT_TYPES.map((type) => {
-                  const chosen = selected.has(type.id);
-                  const configuring = chosen && activeParamId === type.id;
-                  return (
-                    <button
-                      key={type.id}
-                      className={`output-tile ${chosen ? "on" : ""} ${configuring ? "configuring" : ""}`}
-                      onClick={() => toggleOutput(type.id)}
-                    >
-                      <strong>{type.label}</strong>
-                      <span>{type.hint}</span>
-                      {chosen && <small>{configuring ? "Configuring" : "Selected"}</small>}
-                    </button>
-                  );
-                })}
+              <div className="section-title-row output-section-title">
+                <div>
+                  <span className="section-kicker">Step 02</span>
+                  <h2 className="col-title">Choose deliverables</h2>
+                </div>
+                <span className="selection-count">{selected.size} selected</span>
+              </div>
+              <div className="card output-card">
+                <div className="card-heading compact">
+                  <div>
+                    <h3>Publication formats</h3>
+                    <p>Select one or more outcomes for this source set.</p>
+                  </div>
+                </div>
+                <div className="output-grid">
+                  {OUTPUT_TYPES.map((type) => {
+                    const chosen = selected.has(type.id);
+                    const configuring = chosen && activeParamId === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        className={`output-tile ${chosen ? "on" : ""} ${configuring ? "configuring" : ""}`}
+                        onClick={() => toggleOutput(type.id)}
+                      >
+                        <strong>{type.label}</strong>
+                        <span>{type.hint}</span>
+                        {chosen && <small>{configuring ? "Configuring" : "Selected"}</small>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <h2 className="col-title" style={{ marginTop: "18px" }}>Text / Prompt</h2>
               <div className="card" style={{ marginBottom: "16px" }}>
@@ -1491,10 +1536,14 @@ export default function Dashboard() {
           {/* STAGE 1: Parameters beside Source Content (Visible before preview is requested or during planning) */}
           {!gen && (
             <>
-              <div className="section-header">
-                <h2 className="col-title">
-                  3 · Parameters {activeParamId ? `— ${outputTypeLabel(activeParamId)}` : ""}
-                </h2>
+              <div className="section-title-row parameters-title-row">
+                <div>
+                  <span className="section-kicker">Step 03</span>
+                  <h2 className="col-title">
+                    Tailor the result {activeParamId ? `— ${outputTypeLabel(activeParamId)}` : ""}
+                  </h2>
+                </div>
+                <span className="section-helper">Set audience and delivery preferences</span>
               </div>
 
               {planning ? (
@@ -1504,6 +1553,12 @@ export default function Dashboard() {
               ) : (
                 <>
                   <div className="mode-toggle-card">
+                    <div className="card-heading compact">
+                      <div>
+                        <h3>Verification mode</h3>
+                        <p>Choose the review safeguards for this transformation.</p>
+                      </div>
+                    </div>
                     <div className="mode-toggle-header">
                       <strong>Auditing & Verification Mode</strong>
                       <span className={`mode-badge ${isOrganisation ? "org" : "normal"}`}>
@@ -1665,8 +1720,11 @@ export default function Dashboard() {
           {/* STAGE 3: Deliverables (Visible after final generation) */}
           {gen && (
             <>
-              <div className="section-header">
-                <h2 className="col-title">3 · Deliverables</h2>
+              <div className="section-title-row deliverables-title-row">
+                <div>
+                  <span className="section-kicker">Complete</span>
+                  <h2 className="col-title">Deliverables</h2>
+                </div>
                 <div className="deliverables-header-actions">
                   <div className="download-dropdown-wrapper" ref={batchDropdownRef}>
                     <button

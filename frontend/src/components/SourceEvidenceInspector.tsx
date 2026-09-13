@@ -67,10 +67,10 @@ export default function SourceEvidenceInspector({
   }, [evidenceItems, filterQuery]);
 
   return (
-    <div className="source-evidence-inspector">
-      {/* Evidence View Mode Switcher */}
-      <div className="inspector-header">
-        <div className="segmented full">
+    <div className="source-inspector-wrapper">
+      {/* View Mode Segmented Controls */}
+      <div className="source-view-controls">
+        <div className="segmented mode-switcher">
           <button
             type="button"
             className={sourceViewMode === "cards" ? "on" : ""}
@@ -82,7 +82,6 @@ export default function SourceEvidenceInspector({
             type="button"
             className={sourceViewMode === "visual" ? "on" : ""}
             onClick={() => onViewModeChange("visual")}
-            title="Visual OCR Bounding Box Grounding"
           >
             🖼️ Visual Canvas ({visualEvidenceItems.length})
           </button>

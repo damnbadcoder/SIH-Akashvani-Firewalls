@@ -140,22 +140,30 @@ export default function Auth() {
   return (
     <div className="auth">
       <aside className="auth-brand">
-        <div className="logo-mark">⌁</div>
+        <div className="auth-brand-topline">
+          <div className="logo-mark">⌁</div>
+          <span className="auth-brand-label">Trusted transformation</span>
+        </div>
         <h1>Transmute</h1>
         <p className="auth-tagline">
           One source. Every deliverable. Transform reports, advisories and raw intelligence into
-          publication-ready artefacts.
+          executive summaries, client advisories, social posts, presentation outlines and audio/video
+          scripts with verified citation anchors.
         </p>
         <ul className="auth-points">
-          <li>Multi-format source ingestion</li>
-          <li>9 output types from a single run</li>
-          <li>Editable markdown deliverables</li>
-          <li>Enterprise-grade Google &amp; Firebase authentication</li>
+          <li>Deterministic provenance anchors on every claim</li>
+          <li>Enterprise sensitive data proofchecking & redaction</li>
+          <li>Audience-tuned tone and reading level calibration</li>
         </ul>
       </aside>
 
       <main className="auth-panel">
         <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="auth-form-heading">
+            <span className="eyebrow">Secure workspace</span>
+            <h2>{mode === "login" ? "Welcome back" : "Set up your workspace"}</h2>
+            <p>{mode === "login" ? "Sign in to continue transforming trusted source material." : "Create an account to start building publication-ready deliverables."}</p>
+          </div>
           <div className="segmented">
             <button
               type="button"
