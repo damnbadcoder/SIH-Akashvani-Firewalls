@@ -1,21 +1,11 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import InteractivePreviewEditor from "./InteractivePreviewEditor";
-import Markdown from "./Markdown";
+import SourceEvidenceInspector from "./SourceEvidenceInspector";
 import { outputTypeLabel } from "../lib/types";
-import type { Citation, OutputTypeId, SensitiveDataFlag, BoundingBox, DetectedBoxItem } from "../lib/types";
+import type { Citation, OutputTypeId, SensitiveDataFlag, EvidenceCardItem } from "../lib/types";
+import { buildEvidenceItems, countCitationOccurrences } from "../lib/citations";
 
-export interface EvidenceCardItem {
-  citationId: string; // e.g. "src-1", "aud-1", "doc-1", "fact-1", "img-1", "pdf-vis-p1"
-  type: "file" | "audio" | "video" | "ocr" | "link" | "text" | "fact";
-  title: string;
-  timestamp?: string;
-  content: string;
-  sourceOrigin?: string;
-  bbox?: BoundingBox;
-  mediaUrl?: string;
-  pageNumber?: number;
-  allBoxes?: DetectedBoxItem[];
-}
+export type { EvidenceCardItem };
 
 interface ReviewWorkspaceProps {
   currentPreviewId: OutputTypeId | null;
@@ -76,188 +66,23 @@ export default function ReviewWorkspace({
   const [activeVisualEvidence, setActiveVisualEvidence] = useState<EvidenceCardItem | null>(null);
   // Active highlighted bounding box citation ID (e.g. 'src-2', 'img-1')
   const [highlightedCitationId, setHighlightedCitationId] = useState<string | null>(null);
-  // Image viewer zoom scale (50% - 200%)
-  const [zoomLevel, setZoomLevel] = useState<number>(100);
-  // Toggle all detected OCR boxes vs active citation only
-  const [showAllBboxes, setShowAllBboxes] = useState<boolean>(true);
-  // Box selected by user click on canvas
-  const [selectedBoxItem, setSelectedBoxItem] = useState<DetectedBoxItem | null>(null);
+  // Focused occurrence index for multi-occurrence cycling
+  const [focusedOccurrenceIndex, setFocusedOccurrenceIndex] = useState<number>(0);
 
-  const leftPaneScrollRef = useRef<HTMLDivElement>(null);
+  const activeDraftText = currentPreviewId ? previewsByType[currentPreviewId] || "" : "";
 
-  // Parse structured source evidence items
+  // Parse structured source evidence items via unified builder
   const evidenceItems = useMemo<EvidenceCardItem[]>(() => {
-    const items: EvidenceCardItem[] = [];
-    const seenIds = new Set<string>();
-
-    const rawMd = groundingMd || "";
-
-    // 1. Parse video / audio scene transcripts from grounding markdown
-    // Format: ▣ [00:00 - 00:22] ...
-    const sceneRegex = /▣\s*\[(\d{2}:\d{2}\s*-\s*\d{2}:\d{2})\]\s*([^\n]+)/g;
-    let sceneMatch: RegExpExecArray | null;
-    let sceneIdx = 1;
-    while ((sceneMatch = sceneRegex.exec(rawMd)) !== null) {
-      const timeStr = sceneMatch[1];
-      const text = sceneMatch[2].trim();
-      const id = `aud-${sceneIdx}`;
-      items.push({
-        citationId: id,
-        type: "audio",
-        title: fileNames[0] || "Video / Audio Telemetry Stream",
-        timestamp: timeStr,
-        content: text,
-        sourceOrigin: "Whisper Transcription Engine",
-      });
-      seenIds.add(id);
-      sceneIdx++;
-    }
-
-    // 2. Map known citations from previewCitations
-    previewCitations.forEach((c) => {
-      const cleanId = c.id.replace(/^\^/, "");
-      if (seenIds.has(cleanId)) return;
-
-      let type: EvidenceCardItem["type"] = "file";
-      if (c.kind === "text") type = "text";
-      else if (c.kind === "link") type = "link";
-      else if (c.kind === "ocr" || c.bbox || c.media_url || c.imageUrl) type = "ocr";
-      else if (c.label.match(/\.(mp4|mov|webm|avi)$/i)) type = "video";
-      else if (c.label.match(/\.(mp3|wav|m4a)$/i)) type = "audio";
-      else if (c.label.match(/\.(png|jpg|jpeg|webp|svg)$/i)) type = "ocr";
-      else if (cleanId.startsWith("img-") || cleanId.startsWith("pdf-vis")) type = "ocr";
-      else if (cleanId.startsWith("fact-")) type = "fact";
-
-      // Extract a meaningful snippet for this citation
-      let content = "";
-      if (c.bbox?.text) {
-        content = c.bbox.text;
-      } else if (c.kind === "text") {
-        content = sourceText.slice(0, 400) + (sourceText.length > 400 ? "…" : "");
-      } else if (c.kind === "link") {
-        const domainMatch = c.label.match(/\[(.*?)\]/);
-        const searchKeyword = domainMatch ? domainMatch[1] : c.label;
-        const kwEscaped = searchKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const linkSectionMatch = new RegExp(
-          `(?:#+\\s*[^\\n]*${kwEscaped}[^\\n]*\\n+)([\\s\\S]{50,450})`,
-          "i"
-        ).exec(rawMd);
-        if (linkSectionMatch) {
-          content = linkSectionMatch[1].trim();
-        } else {
-          content = `Verified intelligence scraped from ${c.label}. Extracted and normalized via link_pipeline.`;
-        }
-      } else {
-        // Search in grounding markdown for section mentioning this file
-        const fileEscaped = c.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const fileSectionMatch = new RegExp(
-          `(?:#+\\s*[^\\n]*${fileEscaped}[^\\n]*\\n+)([\\s\\S]{50,450})`,
-          "i"
-        ).exec(rawMd);
-        if (fileSectionMatch) {
-          content = fileSectionMatch[1].trim();
-        } else {
-          content = `Extracted evidence from ingested artifact ${c.label}. Ground-truth verified.`;
-        }
-      }
-
-      const resolvedMediaUrl = c.media_url || c.imageUrl || (type === "ocr" ? "/api/pipeline/media/default/1.png" : undefined);
-
-      items.push({
-        citationId: cleanId,
-        type,
-        title: c.label,
-        content: content || `Extracted evidence from ${c.label}. Ground-truth verified.`,
-        sourceOrigin: c.kind === "ocr" || c.bbox ? "OCR Coordinate Grounding" : c.kind === "file" ? "Ingested File" : c.kind === "link" ? "link_pipeline (Web Scraper)" : "Analyst Telemetry Input",
-        bbox: c.bbox,
-        mediaUrl: resolvedMediaUrl,
-        pageNumber: c.page_number || c.pageNumber,
-        allBoxes: c.all_boxes || c.allBoxes,
-      });
-      seenIds.add(cleanId);
-    });
-
-    // 3. Fallback: if no citations yet or sourceText exists without src-1
-    if (!seenIds.has("src-1") && sourceText.trim()) {
-      items.unshift({
-        citationId: "src-1",
-        type: "text",
-        title: "Raw Telemetry & Advisory Prompt",
-        content: sourceText.slice(0, 500) + (sourceText.length > 500 ? "…" : ""),
-        sourceOrigin: "Operator Input",
-      });
-      seenIds.add("src-1");
-    }
-
-    // 4. Scan active preview draft for any referenced citations (e.g. [^src-2], [^aud-1])
-    const activeText = currentPreviewId ? previewsByType[currentPreviewId] || "" : "";
-    const referencedCits = Array.from(activeText.matchAll(/\[\^([^\]]+)\]/g)).map((m) => m[1]);
-    for (const ref of referencedCits) {
-      const clean = ref.trim();
-      if (!seenIds.has(clean)) {
-        items.push({
-          citationId: clean,
-          type: clean.startsWith("aud") ? "audio" : clean.startsWith("img") ? "ocr" : clean.startsWith("fact") ? "fact" : "file",
-          title: `Evidence ${clean}`,
-          content: `Cross-modal evidence grounding reference [^${clean}]. Verified against source telemetry.`,
-          sourceOrigin: "Multimodal Pipeline Extraction",
-        });
-        seenIds.add(clean);
-      }
-    }
-
-    // 5. Parse any external links
-    if (links) {
-      links.split("\n").map((l) => l.trim()).filter(Boolean).forEach((url, i) => {
-        const id = `link-${i + 1}`;
-        if (!seenIds.has(id)) {
-          items.push({
-            citationId: id,
-            type: "link",
-            title: url,
-            content: `External referenced link: ${url}`,
-            sourceOrigin: "External Web Source",
-          });
-          seenIds.add(id);
-        }
-      });
-    }
-
-    // 6. Parse structured facts from groundingJson if present
-    if (groundingJson && typeof groundingJson === "object") {
-      const facts = (groundingJson as any).facts || (groundingJson as any).claims || [];
-      if (Array.isArray(facts)) {
-        facts.forEach((f: any, idx: number) => {
-          const fid = `fact-${idx + 1}`;
-          if (!seenIds.has(fid)) {
-            items.push({
-              citationId: fid,
-              type: "fact",
-              title: typeof f === "string" ? f : f.title || `Verified Fact ${idx + 1}`,
-              content: typeof f === "string" ? f : f.claim || f.text || JSON.stringify(f),
-              sourceOrigin: "Grounding Fact Extraction",
-            });
-            seenIds.add(fid);
-          }
-        });
-      }
-    }
-
-    return items;
-  }, [groundingMd, previewCitations, sourceText, fileNames, links, groundingJson, currentPreviewId, previewsByType]);
-
-  // Filtered evidence items based on search query
-  const filteredEvidence = useMemo(() => {
-    if (!filterQuery.trim()) return evidenceItems;
-    const q = filterQuery.toLowerCase();
-    return evidenceItems.filter(
-      (item) =>
-        item.citationId.toLowerCase().includes(q) ||
-        item.title.toLowerCase().includes(q) ||
-        item.content.toLowerCase().includes(q) ||
-        (item.timestamp && item.timestamp.toLowerCase().includes(q))
+    return buildEvidenceItems(
+      groundingMd || "",
+      previewCitations || [],
+      sourceText || "",
+      fileNames || [],
+      links || "",
+      groundingJson || null,
+      activeDraftText
     );
-  }, [evidenceItems, filterQuery]);
+  }, [groundingMd, previewCitations, sourceText, fileNames, links, groundingJson, activeDraftText]);
 
   // Visual evidence items (OCR diagrams, images, visual PDF pages)
   const visualEvidenceItems = useMemo(() => {
@@ -271,10 +96,94 @@ export default function ReviewWorkspace({
     }
   }, [visualEvidenceItems, activeVisualEvidence]);
 
+  // Total occurrences of the highlighted citation in the active preview draft
+  const totalOccurrences = useMemo(() => {
+    if (!highlightedCitationId) return 0;
+    return countCitationOccurrences(activeDraftText, highlightedCitationId);
+  }, [activeDraftText, highlightedCitationId]);
+
+  // Occurrence cycle handlers
+  function handleNextOccurrence() {
+    if (totalOccurrences <= 0) return;
+    setFocusedOccurrenceIndex((prev) => (prev + 1) % totalOccurrences);
+  }
+
+  function handlePrevOccurrence() {
+    if (totalOccurrences <= 0) return;
+    setFocusedOccurrenceIndex((prev) => (prev - 1 + totalOccurrences) % totalOccurrences);
+  }
+
+  function handleClearCitation() {
+    setHighlightedCitationId(null);
+    setFocusedOccurrenceIndex(0);
+  }
+
+  // Reverse linking: user clicked an evidence card or OCR bounding box in the left pane
+  function handleSelectEvidence(citationId: string) {
+    const cleanId = citationId.replace(/^\^/, "").trim();
+    setHighlightedCitationId(cleanId);
+    setFocusedOccurrenceIndex(0);
+    // On mobile screens, automatically switch to preview draft tab
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setMobileTab("preview");
+    }
+  }
+
+  // Forward linking: user clicked a citation pill or claim sentence inside the preview draft
+  function scrollToSource(citationId: string) {
+    const cleanId = citationId.replace(/^\^/, "").trim();
+    setHighlightedCitationId(cleanId);
+    setFocusedOccurrenceIndex(0);
+    setMobileTab("source");
+
+    // 1. Check if citation corresponds to visual image or OCR bounding box
+    const targetVisual =
+      visualEvidenceItems.find((v) => v.citationId.toLowerCase() === cleanId.toLowerCase()) ||
+      visualEvidenceItems.find((v) =>
+        (v.allBoxes || []).some((b) => b.id?.toLowerCase() === cleanId.toLowerCase())
+      ) ||
+      evidenceItems.find(
+        (item) =>
+          item.citationId.toLowerCase() === cleanId.toLowerCase() &&
+          (item.type === "ocr" || item.bbox || item.mediaUrl)
+      );
+
+    if (targetVisual || cleanId.startsWith("img") || cleanId.startsWith("pdf-vis")) {
+      const activeItem = targetVisual || (visualEvidenceItems.length > 0 ? visualEvidenceItems[0] : null);
+      if (activeItem) {
+        setSourceViewMode("visual");
+        setActiveVisualEvidence(activeItem);
+        return;
+      }
+    }
+
+    // 2. If not visual, show in Cards view and scroll to target card
+    if (sourceViewMode === "visual") {
+      setSourceViewMode("cards");
+    }
+
+    setTimeout(() => {
+      const target =
+        document.getElementById(`source-${cleanId}`) ||
+        document.getElementById(`source-${cleanId.toLowerCase()}`) ||
+        document.getElementById(cleanId) ||
+        document.querySelector(`[data-source-id="${cleanId}"]`);
+
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("source-card-highlighted");
+        setTimeout(() => {
+          target.classList.remove("source-card-highlighted");
+        }, 2000);
+      }
+    }, 80);
+  }
+
   // Synchronize Provenance Anchors tray specifically with citations referenced in the active preview draft
   const activeDraftCitations = useMemo<Citation[]>(() => {
-    const activeText = currentPreviewId ? previewsByType[currentPreviewId] || "" : "";
-    const matches = Array.from(activeText.matchAll(/\[\^([^\]]+)\]/g)).map((m) => m[1].replace(/^\^/, "").trim());
+    const matches = Array.from(activeDraftText.matchAll(/\[\^([^\]]+)\]/g)).map((m) =>
+      m[1].replace(/^\^/, "").trim()
+    );
     const uniqueIds = Array.from(new Set(matches));
 
     if (uniqueIds.length === 0) {
@@ -301,59 +210,7 @@ export default function ReviewWorkspace({
         target: id,
       };
     });
-  }, [currentPreviewId, previewsByType, previewCitations]);
-
-  // Click-to-Scroll & Highlight Synchronization with Visual OCR Support
-  function scrollToSource(citationId: string) {
-    const cleanId = citationId.replace(/^\^/, "").trim();
-
-    // On mobile screens, automatically switch to source evidence tab
-    setMobileTab("source");
-
-    // 1. Check if citation corresponds to visual image or OCR bounding box
-    const targetVisual =
-      visualEvidenceItems.find((v) => v.citationId.toLowerCase() === cleanId.toLowerCase()) ||
-      visualEvidenceItems.find((v) =>
-        (v.allBoxes || []).some((b) => b.id?.toLowerCase() === cleanId.toLowerCase())
-      ) ||
-      evidenceItems.find(
-        (item) =>
-          item.citationId.toLowerCase() === cleanId.toLowerCase() &&
-          (item.type === "ocr" || item.bbox || item.mediaUrl)
-      );
-
-    if (targetVisual || cleanId.startsWith("img") || cleanId.startsWith("pdf-vis")) {
-      const activeItem = targetVisual || (visualEvidenceItems.length > 0 ? visualEvidenceItems[0] : null);
-      if (activeItem) {
-        setSourceViewMode("visual");
-        setActiveVisualEvidence(activeItem);
-        setHighlightedCitationId(cleanId);
-        setSelectedBoxItem(null);
-        return;
-      }
-    }
-
-    // 2. If not visual, show in Cards view and scroll to target
-    if (sourceViewMode === "visual") {
-      setSourceViewMode("cards");
-    }
-
-    setTimeout(() => {
-      const target =
-        document.getElementById(`source-${cleanId}`) ||
-        document.getElementById(`source-${cleanId.toLowerCase()}`) ||
-        document.getElementById(cleanId) ||
-        document.querySelector(`[data-source-id="${cleanId}"]`);
-
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-        target.classList.add("source-card-highlighted");
-        setTimeout(() => {
-          target.classList.remove("source-card-highlighted");
-        }, 2000);
-      }
-    }, 80);
-  }
+  }, [activeDraftText, previewCitations]);
 
   return (
     <div className="review-workspace">
@@ -369,9 +226,7 @@ export default function ReviewWorkspace({
             ← Back to parameters
           </button>
           <div className="review-title-group">
-            <h2 className="review-heading">
-              Dual-Pane Provenance Review
-            </h2>
+            <h2 className="review-heading">Dual-Pane Provenance Review</h2>
             <span className="review-subtitle">
               {currentPreviewId ? outputTypeLabel(currentPreviewId) : "Deliverable Preview"}
             </span>
@@ -424,349 +279,23 @@ export default function ReviewWorkspace({
                 {evidenceItems.length} Evidence {evidenceItems.length === 1 ? "Item" : "Items"}
               </span>
             </div>
-            <div className="segmented sm">
-              <button
-                type="button"
-                className={sourceViewMode === "cards" ? "on" : ""}
-                onClick={() => setSourceViewMode("cards")}
-                title="View individual evidence cards"
-              >
-                Cards
-              </button>
-              {visualEvidenceItems.length > 0 && (
-                <button
-                  type="button"
-                  className={sourceViewMode === "visual" ? "on" : ""}
-                  onClick={() => {
-                    setSourceViewMode("visual");
-                    if (!activeVisualEvidence && visualEvidenceItems.length > 0) {
-                      setActiveVisualEvidence(visualEvidenceItems[0]);
-                    }
-                  }}
-                  title="View interactive visual OCR detection & bounding boxes on images"
-                >
-                  🖼️ Visual OCR ({visualEvidenceItems.length})
-                </button>
-              )}
-              <button
-                type="button"
-                className={sourceViewMode === "raw" ? "on" : ""}
-                onClick={() => setSourceViewMode("raw")}
-                title="View unified extracted markdown context"
-              >
-                Raw Context
-              </button>
-            </div>
           </div>
 
-          {sourceViewMode === "visual" ? (
-            <div className="visual-ocr-inspector-pane">
-              {/* Visual Sub-Toolbar */}
-              <div className="visual-ocr-subtoolbar">
-                {visualEvidenceItems.length > 1 && (
-                  <div className="visual-source-selector">
-                    <select
-                      value={activeVisualEvidence?.citationId || ""}
-                      onChange={(e) => {
-                        const selectedItem = visualEvidenceItems.find((v) => v.citationId === e.target.value);
-                        if (selectedItem) {
-                          setActiveVisualEvidence(selectedItem);
-                          setHighlightedCitationId(selectedItem.citationId);
-                          setSelectedBoxItem(null);
-                        }
-                      }}
-                      className="visual-select-input"
-                    >
-                      {visualEvidenceItems.map((v) => (
-                        <option key={v.citationId} value={v.citationId}>
-                          {v.title || `Visual Source ${v.citationId}`} ({v.allBoxes?.length || 1} boxes)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="visual-zoom-controls">
-                  <button
-                    type="button"
-                    className="ghost sm zoom-btn"
-                    onClick={() => setZoomLevel((z) => Math.max(50, z - 15))}
-                    title="Zoom out"
-                  >
-                    –
-                  </button>
-                  <span className="zoom-label">{zoomLevel}%</span>
-                  <button
-                    type="button"
-                    className="ghost sm zoom-btn"
-                    onClick={() => setZoomLevel((z) => Math.min(250, z + 15))}
-                    title="Zoom in"
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost sm zoom-btn reset-zoom"
-                    onClick={() => setZoomLevel(100)}
-                    title="Reset zoom to 100%"
-                  >
-                    Fit
-                  </button>
-                </div>
-
-                <label className="visual-toggle-label">
-                  <input
-                    type="checkbox"
-                    checked={showAllBboxes}
-                    onChange={(e) => setShowAllBboxes(e.target.checked)}
-                  />
-                  <span>All Boxes ({activeVisualEvidence?.allBoxes?.length || 0})</span>
-                </label>
-
-                <button
-                  type="button"
-                  className="ghost sm back-to-cards-btn"
-                  onClick={() => setSourceViewMode("cards")}
-                >
-                  ← Cards View
-                </button>
-              </div>
-
-              {/* Grounding Attribution Banner */}
-              {highlightedCitationId && (
-                <div className="visual-highlight-banner">
-                  <div className="highlight-banner-header">
-                    <span className="highlight-pill">[^{highlightedCitationId}]</span>
-                    <span className="highlight-title">Active Grounding Citation</span>
-                    {activeVisualEvidence?.bbox && (
-                      <span className="highlight-coords-chip">
-                        Coordinates: ({Math.round(activeVisualEvidence.bbox.x)}%, {Math.round(activeVisualEvidence.bbox.y)}%)
-                      </span>
-                    )}
-                  </div>
-                  <p className="highlight-verbatim">
-                    "{activeVisualEvidence?.content || activeVisualEvidence?.title}"
-                  </p>
-                </div>
-              )}
-
-              {/* Interactive Image & Bounding Box Viewport */}
-              <div className="visual-stage-viewport slim-scroll">
-                <div
-                  className="visual-stage-canvas"
-                  style={{
-                    transform: `scale(${zoomLevel / 100})`,
-                    transformOrigin: "top center",
-                  }}
-                >
-                  <div className="visual-image-wrapper">
-                    <img
-                      src={activeVisualEvidence?.mediaUrl || "/api/pipeline/media/default/1.png"}
-                      alt={activeVisualEvidence?.title || "Visual Evidence"}
-                      className="visual-stage-image"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "/api/pipeline/media/default/1.png";
-                      }}
-                    />
-
-                    {/* Bounding Boxes Layer */}
-                    <div className="visual-bboxes-overlay">
-                      {/* 1. All detected boxes */}
-                      {showAllBboxes &&
-                        (activeVisualEvidence?.allBoxes || []).map((box, bIdx) => {
-                          const isTarget =
-                            highlightedCitationId &&
-                            (box.id?.toLowerCase() === highlightedCitationId.toLowerCase() ||
-                              activeVisualEvidence?.citationId.toLowerCase() === highlightedCitationId.toLowerCase());
-                          if (isTarget) return null;
-
-                          const isSelected = selectedBoxItem?.id === box.id;
-
-                          return (
-                            <div
-                              key={box.id || `box-${bIdx}`}
-                              className={`ocr-bbox ${isSelected ? "selected" : ""}`}
-                              style={{
-                                left: `calc(${box.bbox.x}% - 6px)`,
-                                top: `calc(${box.bbox.y}% - 4px)`,
-                                width: `calc(${box.bbox.width}% + 12px)`,
-                                height: `calc(${box.bbox.height}% + 8px)`,
-                              }}
-                              onClick={() => setSelectedBoxItem(box)}
-                            >
-                              <div className="ocr-bbox-tooltip">
-                                <span className="ocr-bbox-tooltip-text">{box.text}</span>
-                                {box.conf && (
-                                  <span className="ocr-bbox-conf">({Math.round(box.conf)}% conf)</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                      {/* 2. Targeted / Cited Active Bounding Box */}
-                      {activeVisualEvidence?.bbox && (
-                        <div
-                          className="ocr-bbox highlighted-active-box"
-                          style={{
-                            left: `calc(${activeVisualEvidence.bbox.x}% - 8px)`,
-                            top: `calc(${activeVisualEvidence.bbox.y}% - 6px)`,
-                            width: `calc(${activeVisualEvidence.bbox.width}% + 16px)`,
-                            height: `calc(${activeVisualEvidence.bbox.height}% + 12px)`,
-                          }}
-                        >
-                          <div className="highlight-pill-tag">
-                            [^{highlightedCitationId || activeVisualEvidence.citationId}]
-                          </div>
-                          <div className="active-bbox-callout">
-                            <strong>Ground-Truth OCR Extraction:</strong>
-                            <p>{activeVisualEvidence.content || activeVisualEvidence.title}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Selected Box Drawer */}
-              {selectedBoxItem && (
-                <div className="selected-box-drawer">
-                  <div className="drawer-header">
-                    <strong>Selected OCR Box</strong>
-                    <button
-                      type="button"
-                      className="ghost sm"
-                      onClick={() => setSelectedBoxItem(null)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="drawer-text">"{selectedBoxItem.text}"</p>
-                  <div className="drawer-meta">
-                    <span>
-                      Confidence: {selectedBoxItem.conf ? `${Math.round(selectedBoxItem.conf)}%` : "High"}
-                    </span>
-                    <span>
-                      Coordinates: ({selectedBoxItem.bbox.x}%, {selectedBoxItem.bbox.y}%, {selectedBoxItem.bbox.width}% × {selectedBoxItem.bbox.height}%)
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : sourceViewMode === "cards" ? (
-            <>
-              {/* Evidence Filter Bar */}
-              <div className="source-search-bar">
-                <input
-                  type="text"
-                  placeholder="Filter evidence by citation ID, timestamp, keyword…"
-                  value={filterQuery}
-                  onChange={(e) => setFilterQuery(e.target.value)}
-                  className="source-filter-input"
-                />
-                {filterQuery && (
-                  <button
-                    type="button"
-                    className="clear-filter"
-                    onClick={() => setFilterQuery("")}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* Scrollable Evidence Cards List */}
-              <div
-                className="source-cards-container slim-scroll"
-                ref={leftPaneScrollRef}
-              >
-                {filteredEvidence.length === 0 ? (
-                  <div className="card empty-evidence">
-                    <p className="muted">No matching evidence found for "{filterQuery}".</p>
-                  </div>
-                ) : (
-                  filteredEvidence.map((item) => (
-                    <article
-                      key={item.citationId}
-                      id={`source-${item.citationId}`}
-                      data-source-id={item.citationId}
-                      className="source-evidence-card"
-                    >
-                      <div className="evidence-card-header">
-                        <div className="evidence-tag-group">
-                          <span className="citation-anchor-badge">
-                            [^{item.citationId}]
-                          </span>
-                          <span className={`evidence-type-tag ${item.type}`}>
-                            {item.type === "audio"
-                              ? "🎧 Audio Transcript"
-                              : item.type === "video"
-                              ? "🎬 Video Extract"
-                              : item.type === "ocr"
-                              ? "🖼️ OCR Document"
-                              : item.type === "link"
-                              ? "🌐 Reference Link"
-                              : item.type === "fact"
-                              ? "📌 Grounding Fact"
-                              : "📄 Document Text"}
-                          </span>
-                        </div>
-                        {item.timestamp && (
-                          <span className="evidence-timestamp">
-                            ⏱️ {item.timestamp}
-                          </span>
-                        )}
-                      </div>
-
-                      <h4 className="evidence-title">{item.title}</h4>
-
-                      <div className="evidence-content-snippet">
-                        <p>{item.content}</p>
-                      </div>
-
-                      {/* Visual Coordinates and Jump Button if item has BBox */}
-                      {(item.bbox || item.mediaUrl) && (
-                        <div className="evidence-visual-action-bar">
-                          {item.bbox && (
-                            <span className="evidence-coords-chip">
-                              📍 ({Math.round(item.bbox.x)}%, {Math.round(item.bbox.y)}%) • {Math.round(item.bbox.width)}%×{Math.round(item.bbox.height)}%
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            className="ghost sm inspect-visual-btn"
-                            onClick={() => {
-                              setActiveVisualEvidence(item);
-                              setHighlightedCitationId(item.citationId);
-                              setSourceViewMode("visual");
-                            }}
-                            title="Inspect in image canvas"
-                          >
-                            🔍 View in Image Canvas →
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="evidence-card-footer">
-                        <span className="evidence-origin-label">
-                          {item.sourceOrigin || "Ingested Evidence"}
-                        </span>
-                        <span className="evidence-sync-hint">
-                          Matches <code>[^{item.citationId}]</code>
-                        </span>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
-            </>
-          ) : (
-            /* Raw Grounding Markdown View */
-            <div className="raw-grounding-container slim-scroll">
-              <Markdown content={groundingMd || sourceText || "No grounding context extracted."} />
-            </div>
-          )}
+          <SourceEvidenceInspector
+            evidenceItems={evidenceItems}
+            visualEvidenceItems={visualEvidenceItems}
+            activeVisualEvidence={activeVisualEvidence || (visualEvidenceItems[0] ?? null)}
+            highlightedCitationId={highlightedCitationId}
+            sourceViewMode={sourceViewMode}
+            groundingMd={groundingMd || ""}
+            sourceText={sourceText || ""}
+            filterQuery={filterQuery}
+            activeDraftText={activeDraftText}
+            onFilterChange={setFilterQuery}
+            onViewModeChange={setSourceViewMode}
+            onSelectVisualEvidence={setActiveVisualEvidence}
+            onSelectEvidence={handleSelectEvidence}
+          />
         </section>
 
         {/* RIGHT PANE: Interactive Platform Preview & Proofcheck */}
@@ -798,7 +327,8 @@ export default function ReviewWorkspace({
 
           <div className="preview-toolbar">
             <span className="muted">
-              Tailored blueprint for <strong>{currentPreviewId ? outputTypeLabel(currentPreviewId) : "deliverable"}</strong>
+              Tailored blueprint for{" "}
+              <strong>{currentPreviewId ? outputTypeLabel(currentPreviewId) : "deliverable"}</strong>
             </span>
             <div className="preview-actions">
               <div className="segmented">
@@ -841,7 +371,7 @@ export default function ReviewWorkspace({
           {/* Interactive Preview & Proofcheck Editor */}
           <div className="draft-editor-scroll slim-scroll">
             <InteractivePreviewEditor
-              content={currentPreviewId ? previewsByType[currentPreviewId] ?? "" : ""}
+              content={activeDraftText}
               flags={currentPreviewId ? previewFlagsByType[currentPreviewId] ?? [] : []}
               isOrganisation={isOrganisation}
               viewMode={previewViewMode}
@@ -850,6 +380,12 @@ export default function ReviewWorkspace({
               onRerunProofcheck={onRerunProofcheck}
               proofchecking={proofchecking}
               onCitationClick={scrollToSource}
+              highlightedCitationId={highlightedCitationId}
+              focusedOccurrenceIndex={focusedOccurrenceIndex}
+              totalOccurrences={totalOccurrences}
+              onNextOccurrence={handleNextOccurrence}
+              onPrevOccurrence={handlePrevOccurrence}
+              onClearCitation={handleClearCitation}
             />
 
             {/* Citations provenance tray */}
@@ -863,7 +399,9 @@ export default function ReviewWorkspace({
                   <button
                     key={citation.id}
                     type="button"
-                    className="citation-chip interactive-chip"
+                    className={`citation-chip interactive-chip ${
+                      highlightedCitationId?.toLowerCase() === citation.id.toLowerCase() ? "active" : ""
+                    }`}
                     onClick={() => scrollToSource(citation.id)}
                     title={`Inspect source evidence for [^${citation.id}]`}
                   >

@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import Markdown from "./Markdown";
 import type { SensitiveDataFlag } from "../lib/types";
+import { annotateBidirectionalCitations } from "../lib/citations";
 
 interface InteractivePreviewEditorProps {
   content: string;
@@ -12,6 +13,12 @@ interface InteractivePreviewEditorProps {
   onRerunProofcheck: () => void;
   proofchecking: boolean;
   onCitationClick?: (citationId: string) => void;
+  highlightedCitationId?: string | null;
+  focusedOccurrenceIndex?: number;
+  totalOccurrences?: number;
+  onNextOccurrence?: () => void;
+  onPrevOccurrence?: () => void;
+  onClearCitation?: () => void;
 }
 
 export default function InteractivePreviewEditor({
@@ -24,6 +31,12 @@ export default function InteractivePreviewEditor({
   onRerunProofcheck,
   proofchecking,
   onCitationClick,
+  highlightedCitationId,
+  focusedOccurrenceIndex = 0,
+  totalOccurrences = 0,
+  onNextOccurrence,
+  onPrevOccurrence,
+  onClearCitation,
 }: InteractivePreviewEditorProps) {
   const [activeFlagId, setActiveFlagId] = useState<string | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
@@ -194,10 +207,10 @@ export default function InteractivePreviewEditor({
 
   // Handle inline badge click inside preview pane
   function handlePreviewContainerClick(e: React.MouseEvent<HTMLDivElement>) {
-    // 1. Citation pill click: triggers scroll and highlight on source evidence pane
-    const citTarget = (e.target as HTMLElement).closest("[data-citation-id]") as HTMLElement | null;
+    // 1. Citation pill or claim sentence click: triggers scroll and highlight on source evidence pane
+    const citTarget = (e.target as HTMLElement).closest("[data-citation-id], [data-citation-ref]") as HTMLElement | null;
     if (citTarget) {
-      const citId = citTarget.getAttribute("data-citation-id");
+      const citId = citTarget.getAttribute("data-citation-id") || citTarget.getAttribute("data-citation-ref");
       if (citId && onCitationClick) {
         onCitationClick(citId);
       }
@@ -273,16 +286,29 @@ export default function InteractivePreviewEditor({
       (match) => `<span class="redacted-pill-badge" title="Redacted by operator">${match}</span>`
     );
 
-    // 3. Annotate citation markers like [^src-1], [^aud-1], [^img-1] as interactive pills
-    result = result.replace(
-      /\[\^((?:src|aud|vid|img|doc|fact|[a-zA-Z0-9_\-]+)-\d+|[^\]]+)\]/gi,
-      (_match, citationId) => {
-        return `<button type="button" class="citation-pill" data-citation-id="${citationId}" title="Jump to source evidence [^${citationId}]"><span class="citation-icon">↗</span> [^${citationId}]</button>`;
-      }
+    // 3. Annotate bidirectional citations & claim sentences with active highlight
+    result = annotateBidirectionalCitations(
+      result,
+      highlightedCitationId ?? null,
+      focusedOccurrenceIndex ?? 0
     );
 
     return result;
-  }, [content, sortedFlags, isOrganisation]);
+  }, [content, sortedFlags, isOrganisation, highlightedCitationId, focusedOccurrenceIndex]);
+
+  // Auto-scroll to focused occurrence when highlightedCitationId or focusedOccurrenceIndex updates
+  useEffect(() => {
+    if (!highlightedCitationId || viewMode !== "preview") return;
+    const cleanId = highlightedCitationId.replace(/^\^/, "").trim().toLowerCase();
+    const matches = containerRef.current?.querySelectorAll(
+      `[data-citation-ref="${cleanId}"]`
+    );
+    if (matches && matches.length > 0) {
+      const idx = Math.min(focusedOccurrenceIndex ?? 0, matches.length - 1);
+      const target = matches[idx];
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightedCitationId, focusedOccurrenceIndex, viewMode]);
 
   return (
     <div className="interactive-preview-wrapper" ref={containerRef}>
@@ -339,6 +365,54 @@ export default function InteractivePreviewEditor({
             >
               {proofchecking ? "Scanning…" : "🔄 Re-check"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bidirectional Occurrence Navigation Bar */}
+      {viewMode === "preview" && highlightedCitationId && (
+        <div className="bidirectional-nav-bar">
+          <div className="nav-bar-info">
+            <span className="nav-bar-badge">[^{highlightedCitationId}]</span>
+            <span className="nav-bar-label">
+              {totalOccurrences && totalOccurrences > 1
+                ? `Referenced in ${totalOccurrences} places · Claim ${(focusedOccurrenceIndex ?? 0) + 1} of ${totalOccurrences}`
+                : totalOccurrences === 1
+                ? "Referenced in 1 claim sentence"
+                : "Active Evidence Citation"}
+            </span>
+          </div>
+          <div className="nav-bar-actions">
+            {totalOccurrences && totalOccurrences > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="ghost sm nav-cycle-btn"
+                  onClick={onPrevOccurrence}
+                  title="Jump to previous referencing claim"
+                >
+                  ◀ Prev
+                </button>
+                <button
+                  type="button"
+                  className="ghost sm nav-cycle-btn"
+                  onClick={onNextOccurrence}
+                  title="Jump to next referencing claim"
+                >
+                  Next ▶
+                </button>
+              </>
+            )}
+            {onClearCitation && (
+              <button
+                type="button"
+                className="ghost sm nav-clear-btn"
+                onClick={onClearCitation}
+                title="Clear citation highlight"
+              >
+                ✕ Clear
+              </button>
+            )}
           </div>
         </div>
       )}

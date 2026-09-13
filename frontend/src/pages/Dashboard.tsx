@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Markdown from "../components/Markdown";
 import ReviewWorkspace from "../components/ReviewWorkspace";
+import SourceEvidenceInspector from "../components/SourceEvidenceInspector";
 import { logoutUser } from "../lib/firebase";
 import {
   generateDeliverableWithMeta,
@@ -30,6 +31,7 @@ import {
 import type {
   Citation,
   Deliverable,
+  EvidenceCardItem,
   Generation,
   GenerationParams,
   OutputTypeId,
@@ -38,6 +40,11 @@ import type {
   User,
   ScrapedLinkData,
 } from "../lib/types";
+import {
+  annotateBidirectionalCitations,
+  buildEvidenceItems,
+  countCitationOccurrences,
+} from "../lib/citations";
 
 function getAccountHistoryKey(email?: string): string {
   return email ? `tx.history.${email}` : "tx.history.anonymous";
@@ -233,9 +240,188 @@ export default function Dashboard() {
       ? Array.from(selected)[0]
       : null;
 
+  // Stage 3 Bidirectional Source Evidence Grounding state
+  const [showEvidencePanel, setShowEvidencePanel] = useState<boolean>(false);
+  const [stage3HighlightedCitationId, setStage3HighlightedCitationId] = useState<string | null>(null);
+  const [stage3FocusedOccurrenceIndex, setStage3FocusedOccurrenceIndex] = useState<number>(0);
+  const [stage3FilterQuery, setStage3FilterQuery] = useState<string>("");
+  const [stage3SourceViewMode, setStage3SourceViewMode] = useState<"cards" | "visual" | "raw">("cards");
+  const [stage3ActiveVisual, setStage3ActiveVisual] = useState<EvidenceCardItem | null>(null);
+  const deliverableContentRef = useRef<HTMLDivElement>(null);
+
+  // Stage 3 Structured Evidence Items
+  const stage3EvidenceItems = useMemo<EvidenceCardItem[]>(() => {
+    if (!gen) return [];
+    return buildEvidenceItems(
+      gen.groundingMd || groundingMd || "",
+      gen.citations || previewCitations || [],
+      gen.sourceText || sourceText || "",
+      gen.fileNames || fileNames || [],
+      (gen.links || []).join("\n") || links || "",
+      gen.groundingJson || groundingJson || null,
+      active?.content || ""
+    );
+  }, [gen, groundingMd, previewCitations, sourceText, fileNames, links, groundingJson, active?.content]);
+
+  const stage3VisualEvidenceItems = useMemo(() => {
+    return stage3EvidenceItems.filter((i) => i.type === "ocr" || i.bbox || i.mediaUrl);
+  }, [stage3EvidenceItems]);
+
+  // Keep active visual synced in stage 3
+  useEffect(() => {
+    if (!stage3ActiveVisual && stage3VisualEvidenceItems.length > 0) {
+      setStage3ActiveVisual(stage3VisualEvidenceItems[0]);
+    }
+  }, [stage3VisualEvidenceItems, stage3ActiveVisual]);
+
+  // Stage 3 Citation occurrence counts in the active deliverable
+  const stage3TotalOccurrences = useMemo(() => {
+    if (!stage3HighlightedCitationId || !active?.content) return 0;
+    return countCitationOccurrences(active.content, stage3HighlightedCitationId);
+  }, [active?.content, stage3HighlightedCitationId]);
+
+  // Stage 3 annotated deliverable markdown
+  const stage3AnnotatedContent = useMemo(() => {
+    if (!active?.content) return "";
+    return annotateBidirectionalCitations(
+      active.content,
+      stage3HighlightedCitationId,
+      stage3FocusedOccurrenceIndex
+    );
+  }, [active?.content, stage3HighlightedCitationId, stage3FocusedOccurrenceIndex]);
+
+  // Stage 3 occurrence cycling handlers
+  function handleStage3NextOccurrence() {
+    if (stage3TotalOccurrences <= 0) return;
+    setStage3FocusedOccurrenceIndex((prev) => (prev + 1) % stage3TotalOccurrences);
+  }
+
+  function handleStage3PrevOccurrence() {
+    if (stage3TotalOccurrences <= 0) return;
+    setStage3FocusedOccurrenceIndex((prev) => (prev - 1 + stage3TotalOccurrences) % stage3TotalOccurrences);
+  }
+
+  function handleStage3ClearCitation() {
+    setStage3HighlightedCitationId(null);
+    setStage3FocusedOccurrenceIndex(0);
+  }
+
+  // Reverse linking in Stage 3: clicked card or OCR box in the evidence inspector
+  function handleStage3SelectEvidence(citationId: string) {
+    const cleanId = citationId.replace(/^\^/, "").trim();
+    setStage3HighlightedCitationId(cleanId);
+    setStage3FocusedOccurrenceIndex(0);
+  }
+
+  // Forward linking in Stage 3: clicked citation pill or claim sentence inside deliverable
+  function scrollToStage3Source(citationId: string) {
+    const cleanId = citationId.replace(/^\^/, "").trim();
+    setStage3HighlightedCitationId(cleanId);
+    setStage3FocusedOccurrenceIndex(0);
+    setShowEvidencePanel(true);
+
+    const targetVisual =
+      stage3VisualEvidenceItems.find((v) => v.citationId.toLowerCase() === cleanId.toLowerCase()) ||
+      stage3VisualEvidenceItems.find((v) =>
+        (v.allBoxes || []).some((b) => b.id?.toLowerCase() === cleanId.toLowerCase())
+      ) ||
+      stage3EvidenceItems.find(
+        (item) =>
+          item.citationId.toLowerCase() === cleanId.toLowerCase() &&
+          (item.type === "ocr" || item.bbox || item.mediaUrl)
+      );
+
+    if (targetVisual || cleanId.startsWith("img") || cleanId.startsWith("pdf-vis")) {
+      const activeItem = targetVisual || (stage3VisualEvidenceItems.length > 0 ? stage3VisualEvidenceItems[0] : null);
+      if (activeItem) {
+        setStage3SourceViewMode("visual");
+        setStage3ActiveVisual(activeItem);
+        return;
+      }
+    }
+
+    if (stage3SourceViewMode === "visual") {
+      setStage3SourceViewMode("cards");
+    }
+
+    setTimeout(() => {
+      const target =
+        document.getElementById(`source-${cleanId}`) ||
+        document.getElementById(`source-${cleanId.toLowerCase()}`) ||
+        document.getElementById(cleanId) ||
+        document.querySelector(`[data-source-id="${cleanId}"]`);
+
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("source-card-highlighted");
+        setTimeout(() => {
+          target.classList.remove("source-card-highlighted");
+        }, 2000);
+      }
+    }, 80);
+  }
+
+  // Auto-scroll deliverable content to focused occurrence when citation or occurrence changes
+  useEffect(() => {
+    if (!stage3HighlightedCitationId || !deliverableContentRef.current) return;
+    const cleanId = stage3HighlightedCitationId.replace(/^\^/, "").trim().toLowerCase();
+    const matches = deliverableContentRef.current.querySelectorAll(
+      `[data-citation-ref="${cleanId}"]`
+    );
+    if (matches && matches.length > 0) {
+      const idx = Math.min(stage3FocusedOccurrenceIndex, matches.length - 1);
+      matches[idx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [stage3HighlightedCitationId, stage3FocusedOccurrenceIndex]);
+
+  // Click handler inside Stage 3 deliverable container for citation pills & claims
+  function handleStage3DeliverableClick(e: React.MouseEvent<HTMLDivElement>) {
+    const citTarget = (e.target as HTMLElement).closest("[data-citation-id], [data-citation-ref]") as HTMLElement | null;
+    if (citTarget) {
+      const citId = citTarget.getAttribute("data-citation-id") || citTarget.getAttribute("data-citation-ref");
+      if (citId) {
+        scrollToStage3Source(citId);
+      }
+    }
+  }
+
+  // Provenance citations referenced in active deliverable
+  const stage3ActiveCitations = useMemo<Citation[]>(() => {
+    if (!active?.content) return gen?.citations || [];
+    const matches = Array.from(active.content.matchAll(/\[\^([^\]]+)\]/g)).map((m) =>
+      m[1].replace(/^\^/, "").trim()
+    );
+    const uniqueIds = Array.from(new Set(matches));
+    if (uniqueIds.length === 0) return gen?.citations || [];
+
+    const citMap = new Map<string, Citation>();
+    (gen?.citations || []).forEach((c) => citMap.set(c.id.replace(/^\^/, "").trim(), c));
+
+    return uniqueIds.map((id) => {
+      const existing = citMap.get(id);
+      if (existing) return existing;
+      let kind: Citation["kind"] = "text";
+      if (id.startsWith("img")) kind = "ocr";
+      else if (id.startsWith("aud") || id.startsWith("vid")) kind = "link";
+      return {
+        id,
+        label: id.startsWith("img")
+          ? `Image Evidence [^${id}]`
+          : id.startsWith("aud") || id.startsWith("vid")
+          ? `Media Telemetry [^${id}]`
+          : `Source Evidence [^${id}]`,
+        kind,
+        target: id,
+      };
+    });
+  }, [active?.content, gen?.citations]);
+
   function startNewTransformation() {
     setSessionId(null);
     setGen(null);
+    setShowEvidencePanel(false);
+    setStage3HighlightedCitationId(null);
+    setStage3FocusedOccurrenceIndex(0);
     setPreviewsByType({});
     setPreviewsData({});
     setActivePreviewId(null);
@@ -1495,6 +1681,14 @@ export default function Dashboard() {
               <div className="section-header">
                 <h2 className="col-title">3 · Deliverables</h2>
                 <div className="deliverables-header-actions">
+                  <button
+                    type="button"
+                    className={`ghost sm evidence-toggle-btn ${showEvidencePanel ? "on active" : ""}`}
+                    onClick={() => setShowEvidencePanel(!showEvidencePanel)}
+                    title="Toggle Source Evidence Grounding Inspector"
+                  >
+                    {showEvidencePanel ? "✕ Close Evidence" : `🔍 Source Evidence (${stage3EvidenceItems.length})`}
+                  </button>
                   <div className="download-dropdown-wrapper" ref={batchDropdownRef}>
                     <button
                       className="ghost sm download-btn batch-download-btn"
@@ -1564,83 +1758,203 @@ export default function Dashboard() {
                 ))}
               </div>
               {active && (
-                <div className="card deliverable">
-                  <div className="deliverable-toolbar">
-                    {editing ? (
-                      <>
-                        <button className="ghost sm" onClick={() => setEditing(false)}>Discard</button>
-                        <button className="primary sm" onClick={acceptDraft}>Save changes</button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="deliverable-lang-picker">
-                          <span className="lang-picker-icon">🌐</span>
-                          <select
-                            className="lang-picker-select"
-                            value={activeId ? paramsFor(activeId).language : "English"}
-                            onChange={(e) => changeDeliverableLanguage(e.target.value)}
-                            disabled={translatingLang || generating}
-                            title="Update deliverable language (English, Hindi, Telugu)"
-                          >
-                            {LANGUAGES.map((l) => (
-                              <option key={l} value={l}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
-                          {translatingLang && <span className="lang-translating-spinner">Translating…</span>}
+                <div className={`deliverables-split-layout ${showEvidencePanel ? "has-evidence-sidebar" : ""}`}>
+                  {showEvidencePanel && (
+                    <aside className="deliverables-evidence-sidebar">
+                      <div className="sidebar-header-row">
+                        <div className="sidebar-title-group">
+                          <span className="sidebar-title">Source Evidence Grounding</span>
+                          <span className="source-count-pill">{stage3EvidenceItems.length} items</span>
                         </div>
-                        <button className="ghost sm" onClick={() => { setDraft(active.content); setEditing(true); }}>Edit markdown</button>
-                        <button className="ghost sm" onClick={copy}>{copied ? "Copied ✓" : "Copy"}</button>
-                        <div className="download-dropdown-wrapper" ref={singleDropdownRef}>
-                          <button
-                            className="ghost sm download-btn"
-                            onClick={() => setSingleDownloadOpen(!singleDownloadOpen)}
-                            disabled={!!exportingFormat}
-                          >
-                            {exportingFormat && exportingFormat.startsWith("single-") ? (
-                              <span>Downloading {exportingFormat.replace("single-", "").toUpperCase()}…</span>
-                            ) : (
+                        <button
+                          type="button"
+                          className="ghost sm close-sidebar-btn"
+                          onClick={() => setShowEvidencePanel(false)}
+                          title="Collapse Source Evidence Panel"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <SourceEvidenceInspector
+                        evidenceItems={stage3EvidenceItems}
+                        visualEvidenceItems={stage3VisualEvidenceItems}
+                        activeVisualEvidence={stage3ActiveVisual || (stage3VisualEvidenceItems[0] ?? null)}
+                        highlightedCitationId={stage3HighlightedCitationId}
+                        sourceViewMode={stage3SourceViewMode}
+                        groundingMd={gen?.groundingMd || groundingMd || ""}
+                        sourceText={gen?.sourceText || sourceText || ""}
+                        filterQuery={stage3FilterQuery}
+                        activeDraftText={active?.content || ""}
+                        onFilterChange={setStage3FilterQuery}
+                        onViewModeChange={setStage3SourceViewMode}
+                        onSelectVisualEvidence={setStage3ActiveVisual}
+                        onSelectEvidence={handleStage3SelectEvidence}
+                      />
+                    </aside>
+                  )}
+
+                  <div className="deliverable-main-content">
+                    <div className="card deliverable">
+                      <div className="deliverable-toolbar">
+                        {editing ? (
+                          <>
+                            <button className="ghost sm" onClick={() => setEditing(false)}>Discard</button>
+                            <button className="primary sm" onClick={acceptDraft}>Save changes</button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="deliverable-lang-picker">
+                              <span className="lang-picker-icon">🌐</span>
+                              <select
+                                className="lang-picker-select"
+                                value={activeId ? paramsFor(activeId).language : "English"}
+                                onChange={(e) => changeDeliverableLanguage(e.target.value)}
+                                disabled={translatingLang || generating}
+                                title="Update deliverable language (English, Hindi, Telugu)"
+                              >
+                                {LANGUAGES.map((l) => (
+                                  <option key={l} value={l}>
+                                    {l}
+                                  </option>
+                                ))}
+                              </select>
+                              {translatingLang && <span className="lang-translating-spinner">Translating…</span>}
+                            </div>
+                            <button className="ghost sm" onClick={() => { setDraft(active.content); setEditing(true); }}>Edit markdown</button>
+                            <button className="ghost sm" onClick={copy}>{copied ? "Copied ✓" : "Copy"}</button>
+                            <div className="download-dropdown-wrapper" ref={singleDropdownRef}>
+                              <button
+                                className="ghost sm download-btn"
+                                onClick={() => setSingleDownloadOpen(!singleDownloadOpen)}
+                                disabled={!!exportingFormat}
+                              >
+                                {exportingFormat && exportingFormat.startsWith("single-") ? (
+                                  <span>Downloading {exportingFormat.replace("single-", "").toUpperCase()}…</span>
+                                ) : (
+                                  <>
+                                    <span>⬇️ Download</span>
+                                    <span className="dropdown-caret">▾</span>
+                                  </>
+                                )}
+                              </button>
+                              {singleDownloadOpen && (
+                                <div className="download-dropdown-menu">
+                                  <div className="download-menu-header">Select Format:</div>
+                                  <button onClick={() => handleSingleDownload("md")} className="download-menu-item">
+                                    <span className="format-icon">📄</span>
+                                    <span className="format-title">Markdown</span>
+                                    <span className="format-ext">.md</span>
+                                  </button>
+                                  <button onClick={() => handleSingleDownload("txt")} className="download-menu-item">
+                                    <span className="format-icon">📝</span>
+                                    <span className="format-title">Plain Text</span>
+                                    <span className="format-ext">.txt</span>
+                                  </button>
+                                  <button onClick={() => handleSingleDownload("pdf")} className="download-menu-item">
+                                    <span className="format-icon">📕</span>
+                                    <span className="format-title">PDF Document</span>
+                                    <span className="format-ext">.pdf</span>
+                                  </button>
+                                  <button onClick={() => handleSingleDownload("docx")} className="download-menu-item">
+                                    <span className="format-icon">📘</span>
+                                    <span className="format-title">Word Document</span>
+                                    <span className="format-ext">.docx</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Bidirectional Occurrence Navigation Bar */}
+                      {!editing && stage3HighlightedCitationId && (
+                        <div className="bidirectional-nav-bar">
+                          <div className="nav-bar-info">
+                            <span className="nav-bar-badge">[^{stage3HighlightedCitationId}]</span>
+                            <span className="nav-bar-label">
+                              {stage3TotalOccurrences > 1
+                                ? `Referenced in ${stage3TotalOccurrences} places · Claim ${stage3FocusedOccurrenceIndex + 1} of ${stage3TotalOccurrences}`
+                                : stage3TotalOccurrences === 1
+                                ? "Referenced in 1 claim sentence"
+                                : "Active Evidence Citation"}
+                            </span>
+                          </div>
+                          <div className="nav-bar-actions">
+                            {stage3TotalOccurrences > 1 && (
                               <>
-                                <span>⬇️ Download</span>
-                                <span className="dropdown-caret">▾</span>
+                                <button
+                                  type="button"
+                                  className="ghost sm nav-cycle-btn"
+                                  onClick={handleStage3PrevOccurrence}
+                                  title="Jump to previous referencing claim"
+                                >
+                                  ◀ Prev
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost sm nav-cycle-btn"
+                                  onClick={handleStage3NextOccurrence}
+                                  title="Jump to next referencing claim"
+                                >
+                                  Next ▶
+                                </button>
                               </>
                             )}
-                          </button>
-                          {singleDownloadOpen && (
-                            <div className="download-dropdown-menu">
-                              <div className="download-menu-header">Select Format:</div>
-                              <button onClick={() => handleSingleDownload("md")} className="download-menu-item">
-                                <span className="format-icon">📄</span>
-                                <span className="format-title">Markdown</span>
-                                <span className="format-ext">.md</span>
-                              </button>
-                              <button onClick={() => handleSingleDownload("txt")} className="download-menu-item">
-                                <span className="format-icon">📝</span>
-                                <span className="format-title">Plain Text</span>
-                                <span className="format-ext">.txt</span>
-                              </button>
-                              <button onClick={() => handleSingleDownload("pdf")} className="download-menu-item">
-                                <span className="format-icon">📕</span>
-                                <span className="format-title">PDF Document</span>
-                                <span className="format-ext">.pdf</span>
-                              </button>
-                              <button onClick={() => handleSingleDownload("docx")} className="download-menu-item">
-                                <span className="format-icon">📘</span>
-                                <span className="format-title">Word Document</span>
-                                <span className="format-ext">.docx</span>
-                              </button>
-                            </div>
-                          )}
+                            <button
+                              type="button"
+                              className="ghost sm nav-clear-btn"
+                              onClick={handleStage3ClearCitation}
+                              title="Clear citation highlight"
+                            >
+                              ✕ Clear
+                            </button>
+                          </div>
                         </div>
-                      </>
-                    )}
+                      )}
+
+                      {editing ? (
+                        <textarea className="md-editor" value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
+                      ) : (
+                        <div
+                          className="preview-rendered-pane interactive-pane deliverable-rendered-pane"
+                          ref={deliverableContentRef}
+                          onClick={handleStage3DeliverableClick}
+                        >
+                          <Markdown content={stage3AnnotatedContent} />
+                        </div>
+                      )}
+
+                      {/* Citations provenance tray */}
+                      {!editing && stage3ActiveCitations.length > 0 && (
+                        <div className="citation-box provenance-citation-box">
+                          <div className="citation-box-header">
+                            <strong>Provenance Anchors ({stage3ActiveCitations.length})</strong>
+                            <span className="muted">Click any citation pill to inspect its source evidence chunk</span>
+                          </div>
+                          <div className="citation-list">
+                            {stage3ActiveCitations.map((citation) => (
+                              <button
+                                key={citation.id}
+                                type="button"
+                                className={`citation-chip interactive-chip ${
+                                  stage3HighlightedCitationId?.toLowerCase() === citation.id.toLowerCase() ? "active" : ""
+                                }`}
+                                onClick={() => scrollToStage3Source(citation.id)}
+                                title={`Inspect source evidence for [^${citation.id}]`}
+                              >
+                                <span className="chip-icon">
+                                  {citation.kind === "file" ? "▣" : citation.kind === "link" ? "↗" : "¶"}
+                                </span>
+                                <span className="chip-id">[^{citation.id}]</span>
+                                <span className="chip-label">{citation.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {editing ? (
-                    <textarea className="md-editor" value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
-                  ) : (
-                    <Markdown content={active.content} />
-                  )}
                 </div>
               )}
               {active && !editing && (

@@ -15,6 +15,22 @@ def _coerce_str_list(v: Any) -> List[str]:
     return [str(v)]
 
 
+def _coerce_str(v: Any, joiner: str = " ") -> str:
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, (list, tuple, set)):
+        items = [_coerce_str(x, joiner) for x in v if x is not None and str(x).strip()]
+        return joiner.join(items).strip()
+    if isinstance(v, dict):
+        for k in ("text", "content", "summary", "description", "value", "claim"):
+            if k in v and v[k]:
+                return _coerce_str(v[k], joiner)
+        return str(v)
+    return str(v)
+
+
 def _coerce_float(v: Any) -> Optional[float]:
     if v is None or v == "":
         return None
@@ -193,6 +209,11 @@ class LinkedInPreviewContent(BaseModel):
     def validate_lists(cls, v):
         return _coerce_str_list(v)
 
+    @field_validator("hook", "threat_context", "discussion_prompt", mode="before")
+    @classmethod
+    def validate_strs(cls, v):
+        return _coerce_str(v)
+
 
 class SocialThreadPreviewContent(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -208,6 +229,11 @@ class SocialThreadPreviewContent(BaseModel):
     @classmethod
     def validate_lists(cls, v):
         return _coerce_str_list(v)
+
+    @field_validator("hook_tweet", "exploit_tweet", "ioc_tweet", "mitigation_tweet", "wrapup_tweet", mode="before")
+    @classmethod
+    def validate_tweets(cls, v):
+        return _coerce_str(v)
 
 
 class AdvisoryPreviewContent(BaseModel):
@@ -229,6 +255,11 @@ class AdvisoryPreviewContent(BaseModel):
     @classmethod
     def validate_lists(cls, v):
         return _coerce_str_list(v)
+
+    @field_validator("tl_protocol", "severity", "threat_actor", "executive_summary", "technical_analysis", "cert_reporting", mode="before")
+    @classmethod
+    def validate_strs(cls, v):
+        return _coerce_str(v)
 
     @field_validator("cvss_score", mode="before")
     @classmethod
@@ -255,6 +286,11 @@ class ExecSummaryPreviewContent(BaseModel):
     def validate_lists(cls, v):
         return _coerce_str_list(v)
 
+    @field_validator("bluf", "situation", "complication", "solution", mode="before")
+    @classmethod
+    def validate_strs(cls, v):
+        return _coerce_str(v)
+
 
 class IncidentReportPreviewContent(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -271,6 +307,11 @@ class IncidentReportPreviewContent(BaseModel):
     @classmethod
     def validate_lists(cls, v):
         return _coerce_str_list(v)
+
+    @field_validator("incident_id", "status", "severity", "root_cause", mode="before")
+    @classmethod
+    def validate_strs(cls, v):
+        return _coerce_str(v)
 
     @field_validator("timeline", mode="before")
     @classmethod
@@ -297,6 +338,11 @@ class PressReleasePreviewContent(BaseModel):
     @classmethod
     def validate_lists(cls, v):
         return _coerce_str_list(v)
+
+    @field_validator("dateline", "headline", "customer_impact", "media_contact", mode="before")
+    @classmethod
+    def validate_strs(cls, v):
+        return _coerce_str(v)
 
 
 class SlideDeckPreviewContent(BaseModel):

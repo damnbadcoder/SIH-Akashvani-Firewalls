@@ -175,6 +175,19 @@ export interface Citation {
   allBoxes?: DetectedBoxItem[];
 }
 
+export interface EvidenceCardItem {
+  citationId: string; // e.g. "src-1", "aud-1", "doc-1", "fact-1", "img-1", "pdf-vis-p1"
+  type: "audio" | "video" | "ocr" | "file" | "link" | "fact" | "text";
+  title: string;
+  timestamp?: string;
+  content: string;
+  sourceOrigin?: string;
+  bbox?: BoundingBox;
+  mediaUrl?: string;
+  pageNumber?: number;
+  allBoxes?: DetectedBoxItem[];
+}
+
 export interface SensitiveDataFlag {
   flag_id: string;
   entity_type: string;
