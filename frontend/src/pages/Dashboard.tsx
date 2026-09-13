@@ -123,9 +123,11 @@ export default function Dashboard() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [singleDownloadOpen, setSingleDownloadOpen] = useState(false);
   const [batchDownloadOpen, setBatchDownloadOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const singleDropdownRef = useRef<HTMLDivElement>(null);
   const batchDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [translatingLang, setTranslatingLang] = useState(false);
   const [originalEnglishByOutput, setOriginalEnglishByOutput] = useState<Partial<Record<OutputTypeId, string>>>({});
   const hasAutoRestored = useRef(false);
@@ -139,6 +141,9 @@ export default function Dashboard() {
       }
       if (batchDropdownRef.current && !batchDropdownRef.current.contains(target)) {
         setBatchDownloadOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setUserMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -941,17 +946,147 @@ export default function Dashboard() {
           </div>
         </nav>
 
-        <div className="topbar-right">
-          {user.photoURL && (
-            <img
-              src={user.photoURL}
-              alt={user.name}
-              className="topbar-avatar"
-              referrerPolicy="no-referrer"
-            />
+        <div className="topbar-right" ref={userMenuRef}>
+          <div
+            className={`topbar-user-pill ${userMenuOpen ? "active" : ""}`}
+            onClick={() => setUserMenuOpen((v) => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setUserMenuOpen((v) => !v);
+              }
+            }}
+            title="Account profile and details"
+          >
+            <div className="topbar-avatar-wrap">
+              {user.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.name}
+                  className="topbar-avatar"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="topbar-avatar-fallback">
+                  {user.name ? user.name.slice(0, 1).toUpperCase() : "U"}
+                </div>
+              )}
+              <span className="topbar-user-status-dot" aria-hidden="true" />
+            </div>
+
+            <div className="topbar-user-meta">
+              <span className="topbar-user-name">{user.name}</span>
+              <span className="topbar-user-role-tag">{user.userType || "Standard"}</span>
+            </div>
+
+            <svg
+              className={`topbar-user-chevron ${userMenuOpen ? "rotated" : ""}`}
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+
+          <button className="ghost sm topbar-signout-btn" onClick={logout} title="Sign out">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Sign out</span>
+          </button>
+
+          {userMenuOpen && (
+            <div className="user-dropdown-card animate-scale-in">
+              <div className="user-dropdown-header">
+                <div className="dropdown-avatar-large">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.name}
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span>{user.name ? user.name.slice(0, 1).toUpperCase() : "U"}</span>
+                  )}
+                </div>
+                <div className="dropdown-user-info">
+                  <div className="dropdown-name">{user.name}</div>
+                  <div className="dropdown-email">{user.email}</div>
+                  <div className="dropdown-badge">
+                    <span className="badge-dot" />
+                    {user.organisation ? `${user.organisation} · ${user.userType}` : user.userType}
+                  </div>
+                </div>
+              </div>
+
+              <div className="user-dropdown-divider" />
+
+              <div className="user-dropdown-section">
+                <div className="user-dropdown-row">
+                  <span className="row-label">Plan / Role</span>
+                  <span className="row-value">{user.userType}</span>
+                </div>
+                {user.organisation && (
+                  <div className="user-dropdown-row">
+                    <span className="row-label">Organization</span>
+                    <span className="row-value">{user.organisation}</span>
+                  </div>
+                )}
+                <div className="user-dropdown-row">
+                  <span className="row-label">Session</span>
+                  <span className="row-value text-emerald">Verified Active</span>
+                </div>
+              </div>
+
+              <div className="user-dropdown-divider" />
+
+              <button
+                className="user-dropdown-logout-btn"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  logout();
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Sign out of Transmute</span>
+              </button>
+            </div>
           )}
-          <span className="user-chip">{user.name} · <em>{user.userType}</em></span>
-          <button className="ghost sm" onClick={logout}>Sign out</button>
         </div>
       </header>
 
