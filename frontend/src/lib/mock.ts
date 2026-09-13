@@ -941,7 +941,12 @@ export function stripPreviewWrappers(text: string): string {
   return s;
 }
 
-export async function generateDeliverable(
+export interface DeliverableGeneratedResult {
+  content: string;
+  originalEnglish?: string;
+}
+
+export async function generateDeliverableWithMeta(
   id: OutputTypeId,
   sourceText: string,
   params: GenerationParams,
@@ -952,7 +957,7 @@ export async function generateDeliverable(
   sessionId?: string,
   email?: string,
   userId?: string
-): Promise<string> {
+): Promise<DeliverableGeneratedResult> {
   const cleanBlueprint = blueprint ? stripPreviewWrappers(blueprint) : "";
   // Attempt real backend deliverable generation
   try {
@@ -983,7 +988,16 @@ export async function generateDeliverable(
       const data = await res.json();
       const content = data.final_content || data.content;
       if (content) {
-        return stripPreviewWrappers(content);
+        const cleanContent = stripPreviewWrappers(content);
+        const origEn = data.original_english
+          ? stripPreviewWrappers(data.original_english)
+          : (params?.language === "English" || !params?.language)
+          ? cleanContent
+          : undefined;
+        return {
+          content: cleanContent,
+          originalEnglish: origEn,
+        };
       }
     } else {
       const errText = await res.text().catch(() => "");
@@ -1050,9 +1064,10 @@ export async function generateDeliverable(
   const f3 = facts[2] || `Compromised endpoints detected across regional infrastructure controllers.`;
   const f4 = facts[3] || `Administrative credentials harvested during initial access stage.`;
 
-  switch (id) {
-    case "linkedin_post":
-      return `🚨 If your organization operates enterprise infrastructure, you need to read this immediately [^src-1].
+  const rawContent = (() => {
+    switch (id) {
+      case "linkedin_post":
+        return `🚨 If your organization operates enterprise infrastructure, you need to read this immediately [^src-1].
 
 A major threat intelligence development has just been confirmed:
 
@@ -1351,7 +1366,212 @@ An active security event was detected targeting ${system} infrastructure through
 
 **Next Steps:**
 Ensure all administrative accounts undergo credential rotation [^src-1] and apply the vendor patch immediately [^src-2].`;
+    }
+  })();
+
+  if (params?.language === "Hindi" || params?.language === "Telugu") {
+    return {
+      content: applyIndicFallbackClient(rawContent, params.language),
+      originalEnglish: rawContent,
+    };
   }
+  return {
+    content: rawContent,
+    originalEnglish: rawContent,
+  };
+}
+
+export async function generateDeliverable(
+  id: OutputTypeId,
+  sourceText: string,
+  params: GenerationParams,
+  blueprint?: string,
+  isOrganisation: boolean = false,
+  groundingMd?: string,
+  groundingJson?: any,
+  sessionId?: string,
+  email?: string,
+  userId?: string
+): Promise<string> {
+  const result = await generateDeliverableWithMeta(
+    id,
+    sourceText,
+    params,
+    blueprint,
+    isOrganisation,
+    groundingMd,
+    groundingJson,
+    sessionId,
+    email,
+    userId
+  );
+  return result.content;
+}
+
+const INDIC_HINDI_MAP: [string, string][] = [
+  ["TECHNICAL SECURITY ADVISORY", "तकनीकी सुरक्षा परामर्श"],
+  ["Technical Security Advisory", "तकनीकी सुरक्षा परामर्श"],
+  ["EXECUTIVE INTELLIGENCE SUMMARY", "कार्यकारी खुफिया सारांश"],
+  ["Executive Intelligence Summary", "कार्यकारी खुफिया सारांश"],
+  ["CYBERSECURITY INCIDENT REPORT", "साइबर सुरक्षा घटना रिपोर्ट"],
+  ["Cybersecurity Incident Report", "साइबर सुरक्षा घटना रिपोर्ट"],
+  ["PUBLIC SECURITY STATEMENT", "सार्वजनिक सुरक्षा वक्तव्य"],
+  ["Public Security Statement", "सार्वजनिक सुरक्षा वक्तव्य"],
+  ["REMEDIATION & INCIDENT PLAYBOOK", "उपचार और घटना प्लेबुक"],
+  ["Remediation & Incident Playbook", "उपचार और घटना प्लेबुक"],
+  ["EXECUTIVE BRIEFING SLIDE DECK", "कार्यकारी ब्रीफिंग स्लाइड डेक"],
+  ["Executive Briefing Slide Deck", "कार्यकारी ब्रीफिंग स्लाइड डेक"],
+  ["AUDIO & VIDEO BRIEFING SCRIPT", "ऑडियो और वीडियो ब्रीफिंग स्क्रिप्ट"],
+  ["Audio & Video Briefing Script", "ऑडियो और वीडियो ब्रीफिंग स्क्रिप्ट"],
+  ["TRAFFIC LIGHT PROTOCOL", "ट्रैफिक लाइट प्रोटोकॉल"],
+  ["SEVERITY", "गंभीरता"],
+  ["CRITICAL", "गंभीर"],
+  ["HIGH", "उच्च"],
+  ["MEDIUM", "मध्यम"],
+  ["LOW", "कम"],
+  ["Key Findings", "मुख्य निष्कर्ष"],
+  ["Incident Summary", "घटना सारांश"],
+  ["Threat Assessment", "जोखिम मूल्यांकन"],
+  ["Immediate Actions Required", "तत्काल आवश्यक कार्रवाइयां"],
+  ["Immediate Remediation Steps", "तत्काल उपचार के कदम"],
+  ["Remediation Steps", "उपचार के कदम"],
+  ["Technical Mitigations", "तकनीकी शमन उपाय"],
+  ["Target Audience", "लक्षित पाठक"],
+  ["Published By", "प्रकाशक"],
+  ["Actionable Guidance", "कार्रवाई योग्य मार्गदर्शन"],
+  ["Blast Radius & Impact", "प्रभाव और फैलाव"],
+  ["Takeaways & Next Steps", "निष्कर्ष और अगले कदम"],
+  ["Entry Vector", "प्रवेश माध्यम"],
+  ["Lateral Infiltration", "आंतरिक घुसपैठ"],
+  ["Access Risk", "पहुंच जोखिम"],
+  ["Threat Alert", "सुरक्षा चेतावनी"],
+  ["Urgent Directive", "तत्काल निर्देश"],
+  ["Security Leaders", "सुरक्षा प्रमुख"],
+  ["Enterprise Infrastructure", "उद्यम बुनियादी ढांचा"],
+];
+
+const INDIC_TELUGU_MAP: [string, string][] = [
+  ["TECHNICAL SECURITY ADVISORY", "సాంకేతిక భద్రతా సలహా"],
+  ["Technical Security Advisory", "సాంకేతిక భద్రతా సలహా"],
+  ["EXECUTIVE INTELLIGENCE SUMMARY", "కార్యనిర్వాహక భద్రతా సారాంశం"],
+  ["Executive Intelligence Summary", "కార్యనిర్వాహక భద్రతా సారాంశం"],
+  ["CYBERSECURITY INCIDENT REPORT", "సైబర్ భద్రతా సంఘటన నివేదిక"],
+  ["Cybersecurity Incident Report", "సైబర్ భద్రతా సంఘటన నివేదిక"],
+  ["PUBLIC SECURITY STATEMENT", "ప్రజా భద్రతా ప్రకటన"],
+  ["Public Security Statement", "ప్రజా భద్రతా ప్రకటన"],
+  ["REMEDIATION & INCIDENT PLAYBOOK", "పరిష్కార & సంఘటన ప్లేబుక్"],
+  ["Remediation & Incident Playbook", "పరిష్కార & సంఘటన ప్లేబుక్"],
+  ["EXECUTIVE BRIEFING SLIDE DECK", "కార్యనిర్వాహక బ్రీఫింగ్ స్లైడ్ డెక్"],
+  ["Executive Briefing Slide Deck", "కార్యనిర్వాహక బ్రీఫింగ్ స్లైడ్ డెక్"],
+  ["AUDIO & VIDEO BRIEFING SCRIPT", "ఆడియో మరియు వీడియో బ్రీఫింగ్ స్క్రిప్ట్"],
+  ["Audio & Video Briefing Script", "ఆడియో మరియు వీడియో బ్రీఫింగ్ స్క్రిప్ట్"],
+  ["TRAFFIC LIGHT PROTOCOL", "ట్రాఫిక్ లైట్ ప్రోటోకాల్"],
+  ["SEVERITY", "తీవ్రత"],
+  ["CRITICAL", "కీలకమైనది"],
+  ["HIGH", "అధికం"],
+  ["MEDIUM", "మధ్యస్థం"],
+  ["LOW", "తక్కువ"],
+  ["Key Findings", "ముఖ్యమైన గమనింపులు"],
+  ["Incident Summary", "సంఘటన సారాంశం"],
+  ["Threat Assessment", "ముప్పు అంచనా"],
+  ["Immediate Actions Required", "వెంటనే తీసుకోవాల్సిన చర్యలు"],
+  ["Immediate Remediation Steps", "తక్షణ పరిష్కార చర్యలు"],
+  ["Remediation Steps", "పరిష్కార చర్యలు"],
+  ["Technical Mitigations", "సాంకేతిక నివారణ చర్యలు"],
+  ["Target Audience", "లక్ష్య ప్రేక్షకులు"],
+  ["Published By", "ప్రచురణకర్త"],
+  ["Actionable Guidance", "ఆచరణాత్మక మార్గదర్శకత్వం"],
+  ["Blast Radius & Impact", "ప్రభావం మరియు పరిధి"],
+  ["Takeaways & Next Steps", "ముగింపు మరియు తదుపరి దశలు"],
+  ["Entry Vector", "ప్రవేశ మార్గం"],
+  ["Lateral Infiltration", "అంతర్గత వ్యాప్తి"],
+  ["Access Risk", "యాక్సెస్ ప్రమాదం"],
+  ["Threat Alert", "భద్రతా హెచ్చరిక"],
+  ["Urgent Directive", "తక్షణ ఆదేశం"],
+  ["Security Leaders", "భద్రతా నాయకులు"],
+  ["Enterprise Infrastructure", "సంస్థాగత మౌలిక సదుపాయాలు"],
+];
+
+export async function translateDeliverable(
+  content: string,
+  targetLanguage: string,
+  outputType: string = "default",
+  sessionId?: string,
+  originalEnglish?: string
+): Promise<string> {
+  if (!content || !targetLanguage) {
+    return content;
+  }
+
+  // If restoring to English and we have the verbatim original English cached, notify backend and return original
+  if (targetLanguage === "English" && originalEnglish) {
+    if (sessionId) {
+      callApi("/api/deliverables/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content,
+          target_language: "English",
+          platform_key: outputType,
+          session_id: sessionId,
+          original_english: originalEnglish,
+        }),
+      }).catch((err) => console.warn("Async sync to backend for English deliverable failed:", err));
+    }
+    return originalEnglish;
+  }
+
+  try {
+    const res = await callApi("/api/deliverables/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content,
+        target_language: targetLanguage,
+        platform_key: outputType,
+        session_id: sessionId,
+        original_english: originalEnglish,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.translated_content) {
+        return data.translated_content;
+      }
+    }
+  } catch (err) {
+    console.warn("Backend translation endpoint failed, falling back to client Indic localization:", err);
+  }
+
+  if (targetLanguage === "English" && originalEnglish) {
+    return originalEnglish;
+  }
+
+  return applyIndicFallbackClient(content, targetLanguage);
+}
+
+export function applyIndicFallbackClient(text: string, targetLanguage: string): string {
+  if (!text) return text;
+
+  if (targetLanguage === "English") {
+    // Reverse Telugu and Hindi mappings to restore English headings and technical terms
+    let restored = text;
+    for (const [en, tr] of INDIC_TELUGU_MAP) {
+      restored = restored.split(tr).join(en);
+    }
+    for (const [en, tr] of INDIC_HINDI_MAP) {
+      restored = restored.split(tr).join(en);
+    }
+    return restored;
+  }
+
+  const map = targetLanguage === "Hindi" ? INDIC_HINDI_MAP : targetLanguage === "Telugu" ? INDIC_TELUGU_MAP : [];
+  let localized = text;
+  for (const [en, tr] of map) {
+    localized = localized.split(en).join(tr);
+  }
+  return localized;
 }
 
 export async function regenerateDeliverable(

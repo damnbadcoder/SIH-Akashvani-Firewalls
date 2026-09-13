@@ -124,10 +124,7 @@ export const OBJECTIVES = [
 export const LANGUAGES = [
   "English",
   "Hindi",
-  "Spanish",
-  "French",
-  "German",
-  "Japanese",
+  "Telugu",
 ] as const;
 
 export interface GenerationParams {
@@ -204,6 +201,7 @@ export interface Deliverable {
   outputType: OutputTypeId;
   content: string;
   retries: number;
+  originalEnglish?: string;
 }
 
 export interface Generation {

@@ -15,4 +15,5 @@ class FinalDeliverableResult(BaseModel):
     verification: Optional[Dict[str, Any]] = None
     relinked_citations: Optional[List[Any]] = None
     readability: Optional[Dict[str, Any]] = None
+    original_english: Optional[str] = None
 

@@ -45,10 +45,19 @@ def get_chat_history(
         # Construct frontend-compatible generation object
         deliverables = []
         for d in s.deliverables:
+            orig_en = None
+            if d.parameters_json:
+                try:
+                    p = json.loads(d.parameters_json)
+                    if isinstance(p, dict):
+                        orig_en = p.get("original_english")
+                except Exception:
+                    pass
             deliverables.append({
                 "outputType": d.output_type,
                 "content": d.content,
                 "retries": 0,
+                "originalEnglish": orig_en or d.content,
             })
 
         previews_by_type = {}

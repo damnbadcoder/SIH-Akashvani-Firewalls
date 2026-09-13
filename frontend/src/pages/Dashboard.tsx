@@ -4,7 +4,7 @@ import Markdown from "../components/Markdown";
 import ReviewWorkspace from "../components/ReviewWorkspace";
 import { logoutUser } from "../lib/firebase";
 import {
-  generateDeliverable,
+  generateDeliverableWithMeta,
   generatePlan,
   proofcheckPreviewDraft,
   proofcheckSensitiveLocal,
@@ -15,6 +15,7 @@ import {
   triggerFileDownload,
   exportDeliverableFile,
   exportDeliverablesZip,
+  translateDeliverable,
 } from "../lib/mock";
 import {
   AUDIENCE_CATEGORIES,
@@ -122,6 +123,8 @@ export default function Dashboard() {
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const singleDropdownRef = useRef<HTMLDivElement>(null);
   const batchDropdownRef = useRef<HTMLDivElement>(null);
+  const [translatingLang, setTranslatingLang] = useState(false);
+  const [originalEnglishByOutput, setOriginalEnglishByOutput] = useState<Partial<Record<OutputTypeId, string>>>({});
   const hasAutoRestored = useRef(false);
   const autosaveTimeout = useRef<any>(null);
 
@@ -252,6 +255,7 @@ export default function Dashboard() {
     setGenError("");
     setPreviewViewMode("preview");
     setPreviewFlagsByType({});
+    setOriginalEnglishByOutput({});
   }
 
   function paramsFor(id: OutputTypeId): GenerationParams {
@@ -261,7 +265,7 @@ export default function Dashboard() {
   function updateParams(id: OutputTypeId, patch: Partial<GenerationParams>) {
     setParamsByType((prev) => ({
       ...prev,
-      [id]: { ...paramsFor(id), ...patch },
+      [id]: { ...(prev[id] ?? copyParams(DEFAULT_PARAMS)), ...patch },
     }));
   }
 
@@ -581,8 +585,11 @@ export default function Dashboard() {
 
     try {
       const first = selected.values().next().value as OutputTypeId;
+      const allDeliverables: Deliverable[] = [];
+      const origMap: Partial<Record<OutputTypeId, string>> = {};
+
       for (const id of selected) {
-        const content = await generateDeliverable(
+        const res = await generateDeliverableWithMeta(
           id,
           sourceText,
           paramsFor(id),
@@ -594,11 +601,30 @@ export default function Dashboard() {
           user?.email,
           user?.id
         );
-        g.deliverables.push({ outputType: id, content, retries: 0 });
-        setGen({ ...g, deliverables: [...g.deliverables] });
-        if (id === first) setActiveId(id);
+        const content = res.content;
+        const origEn = res.originalEnglish || (paramsFor(id).language === "English" ? content : undefined);
+        allDeliverables.push({
+          outputType: id,
+          content,
+          retries: 0,
+          originalEnglish: origEn,
+        });
+        if (origEn) {
+          origMap[id] = origEn;
+        }
       }
-      const done: Generation = { ...g, deliverables: [...g.deliverables], status: "completed" };
+
+      if (allDeliverables.length === 0) {
+        throw new Error("No deliverables could be generated.");
+      }
+
+      setOriginalEnglishByOutput((prev) => ({ ...prev, ...origMap }));
+      const done: Generation = { ...g, deliverables: allDeliverables, status: "completed" };
+      setGen(done);
+      if (first) {
+        setActiveId(first);
+      }
+
       setHistory((prev) => {
         const filtered = prev.filter((item) => (item.sessionId || item.id) !== currentSessionId);
         const nextHistory = [done, ...filtered].slice(0, 30);
@@ -627,11 +653,34 @@ export default function Dashboard() {
         paramsFor(activeId),
         refinement || "Improve overall quality and clarity"
       );
-      setGen({
-        ...gen,
-        deliverables: gen.deliverables.map((d) =>
-          d.outputType === activeId ? { ...d, content, retries: d.retries + 1 } : d
-        ),
+      setOriginalEnglishByOutput((prev) => ({ ...prev, [activeId]: content }));
+      setGen((prevGen) => {
+        if (!prevGen) return prevGen;
+        return {
+          ...prevGen,
+          deliverables: prevGen.deliverables.map((d) =>
+            d.outputType === activeId
+              ? { ...d, content, originalEnglish: content, retries: d.retries + 1 }
+              : d
+          ),
+        };
+      });
+      setHistory((prev) => {
+        const nextHistory = prev.map((item) => {
+          if ((item.sessionId || item.id) === (sessionId || gen?.sessionId || gen?.id)) {
+            return {
+              ...item,
+              deliverables: (item.deliverables || []).map((d) =>
+                d.outputType === activeId
+                  ? { ...d, content, originalEnglish: content, retries: d.retries + 1 }
+                  : d
+              ),
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(getAccountHistoryKey(user?.email), JSON.stringify(nextHistory));
+        return nextHistory;
       });
     } finally {
       setRetrying(false);
@@ -645,6 +694,17 @@ export default function Dashboard() {
     } else {
       setSessionId(item.sessionId || item.id);
       setGen(item);
+      if (item.deliverables) {
+        const origMap: Partial<Record<OutputTypeId, string>> = {};
+        item.deliverables.forEach((d) => {
+          if (d.originalEnglish) {
+            origMap[d.outputType] = d.originalEnglish;
+          } else if (item.paramsByType?.[d.outputType]?.language === "English") {
+            origMap[d.outputType] = d.content;
+          }
+        });
+        setOriginalEnglishByOutput(origMap);
+      }
       setPreviewsByType(item.previewsByType || {});
       setActivePreviewId(null);
       setPreviewCitations(item.citations);
@@ -662,11 +722,45 @@ export default function Dashboard() {
 
   function acceptDraft() {
     if (!gen || !activeId) return;
-    setGen({
-      ...gen,
-      deliverables: gen.deliverables.map((d) =>
-        d.outputType === activeId ? { ...d, content: draft } : d
-      ),
+    const isCurrentlyEnglish = (activeId ? paramsFor(activeId).language : "English") === "English";
+    if (isCurrentlyEnglish) {
+      setOriginalEnglishByOutput((prev) => ({ ...prev, [activeId]: draft }));
+    }
+    setGen((prevGen) => {
+      if (!prevGen) return prevGen;
+      return {
+        ...prevGen,
+        deliverables: prevGen.deliverables.map((d) =>
+          d.outputType === activeId
+            ? {
+                ...d,
+                content: draft,
+                originalEnglish: isCurrentlyEnglish ? draft : d.originalEnglish,
+              }
+            : d
+        ),
+      };
+    });
+    setHistory((prev) => {
+      const nextHistory = prev.map((item) => {
+        if ((item.sessionId || item.id) === (sessionId || gen?.sessionId || gen?.id)) {
+          return {
+            ...item,
+            deliverables: (item.deliverables || []).map((d) =>
+              d.outputType === activeId
+                ? {
+                    ...d,
+                    content: draft,
+                    originalEnglish: isCurrentlyEnglish ? draft : d.originalEnglish,
+                  }
+                : d
+            ),
+          };
+        }
+        return item;
+      });
+      localStorage.setItem(getAccountHistoryKey(user?.email), JSON.stringify(nextHistory));
+      return nextHistory;
     });
     setEditing(false);
   }
@@ -707,6 +801,91 @@ export default function Dashboard() {
       alert(`Failed to package deliverables as .zip (${format}). Please try again.`);
     } finally {
       setExportingFormat(null);
+    }
+  }
+
+  async function changeDeliverableLanguage(newLang: string) {
+    if (!gen || !active || !activeId) return;
+    if (paramsFor(activeId).language === newLang) return;
+
+    const originalEnglish = active.originalEnglish || originalEnglishByOutput[activeId];
+
+    setTranslatingLang(true);
+    try {
+      const translated = await translateDeliverable(
+        active.content,
+        newLang,
+        activeId,
+        sessionId || undefined,
+        originalEnglish
+      );
+
+      updateParams(activeId, { language: newLang });
+
+      const resolvedOriginal = originalEnglish || (newLang === "English" ? translated : undefined);
+
+      setGen((prevGen) => {
+        if (!prevGen) return prevGen;
+        const updatedDeliverables = prevGen.deliverables.map((d) =>
+          d.outputType === activeId
+            ? {
+                ...d,
+                content: translated,
+                originalEnglish: d.originalEnglish || resolvedOriginal,
+              }
+            : d
+        );
+        return {
+          ...prevGen,
+          deliverables: updatedDeliverables,
+          paramsByType: {
+            ...prevGen.paramsByType,
+            [activeId]: {
+              ...(prevGen.paramsByType?.[activeId] || paramsFor(activeId)),
+              language: newLang,
+            },
+          },
+        };
+      });
+
+      if (!originalEnglish && newLang === "English") {
+        setOriginalEnglishByOutput((prev) => ({ ...prev, [activeId]: translated }));
+      }
+
+      setHistory((prev) => {
+        const nextHistory = prev.map((item) => {
+          if ((item.sessionId || item.id) === (sessionId || gen?.sessionId || gen?.id)) {
+            const updatedDeliverables = (item.deliverables || []).map((d) =>
+              d.outputType === activeId
+                ? {
+                    ...d,
+                    content: translated,
+                    originalEnglish: d.originalEnglish || resolvedOriginal,
+                  }
+                : d
+            );
+            return {
+              ...item,
+              deliverables: updatedDeliverables,
+              paramsByType: {
+                ...item.paramsByType,
+                [activeId]: {
+                  ...(item.paramsByType?.[activeId] || paramsFor(activeId)),
+                  language: newLang,
+                },
+              },
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(getAccountHistoryKey(user?.email), JSON.stringify(nextHistory));
+        return nextHistory;
+      });
+    } catch (err) {
+      console.error("Language translation failed:", err);
+      alert(`Could not translate deliverable to ${newLang}. Please try again.`);
+    } finally {
+      setTranslatingLang(false);
     }
   }
 
@@ -1394,6 +1573,23 @@ export default function Dashboard() {
                       </>
                     ) : (
                       <>
+                        <div className="deliverable-lang-picker">
+                          <span className="lang-picker-icon">🌐</span>
+                          <select
+                            className="lang-picker-select"
+                            value={activeId ? paramsFor(activeId).language : "English"}
+                            onChange={(e) => changeDeliverableLanguage(e.target.value)}
+                            disabled={translatingLang || generating}
+                            title="Update deliverable language (English, Hindi, Telugu)"
+                          >
+                            {LANGUAGES.map((l) => (
+                              <option key={l} value={l}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                          {translatingLang && <span className="lang-translating-spinner">Translating…</span>}
+                        </div>
                         <button className="ghost sm" onClick={() => { setDraft(active.content); setEditing(true); }}>Edit markdown</button>
                         <button className="ghost sm" onClick={copy}>{copied ? "Copied ✓" : "Copy"}</button>
                         <div className="download-dropdown-wrapper" ref={singleDropdownRef}>

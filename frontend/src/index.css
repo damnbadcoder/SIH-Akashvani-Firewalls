@@ -2670,5 +2670,55 @@ span[style*="color: red"],
   transition: all 0.15s ease;
 }
 
+/* Deliverable Language Switcher */
+.deliverable-lang-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e293b;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.deliverable-lang-picker:hover {
+  border-color: #38bdf8;
+}
+
+.lang-picker-icon {
+  font-size: 14px;
+}
+
+.lang-picker-select {
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  padding: 4px 2px;
+}
+
+.lang-picker-select option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.lang-translating-spinner {
+  font-size: 11px;
+  color: #38bdf8;
+  font-family: var(--mono);
+  animation: pulseTranslating 1.2s infinite;
+}
+
+@keyframes pulseTranslating {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+
 
 

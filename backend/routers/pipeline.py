@@ -30,7 +30,7 @@ from backend.services.preview_service import preview_service
 from backend.services.branching_service import branching_service
 from backend.services.conditional_service import conditional_routing_service
 from backend.services.deliverable_service import deliverable_service
-from final_post_pipeline import strip_preview_wrappers
+from final_post_pipeline import strip_preview_wrappers, translate_deliverable_to_language
 
 router = APIRouter(tags=["Pipeline Orchestration"])
 
@@ -564,6 +564,95 @@ async def generate_deliverable_endpoint(
     result["status"] = "completed"
 
     return result
+
+
+@router.post("/api/deliverables/translate")
+async def translate_deliverable_endpoint(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Translates an existing or newly generated final deliverable into the target language
+    (Hindi, Telugu, or English), preserving technical identifiers, IPs, CVEs, and citations.
+    """
+    payload = await request.json()
+    content = payload.get("content", "")
+    target_language = payload.get("target_language") or payload.get("language") or "English"
+    platform_key = payload.get("platform_key") or payload.get("outputType") or "default"
+    session_id = payload.get("session_id") or payload.get("sessionId")
+    original_english = payload.get("original_english") or payload.get("originalEnglish")
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Content cannot be empty.")
+
+    target_lang = target_language.strip().title()
+
+    from backend.models.deliverable import DeliverableRecord
+    record = None
+    if session_id and platform_key != "default":
+        record = (
+            db.query(DeliverableRecord)
+            .filter(
+                DeliverableRecord.session_id == session_id,
+                DeliverableRecord.output_type == platform_key,
+            )
+            .first()
+        )
+
+    if target_lang == "English":
+        if original_english:
+            translated = original_english
+        elif record and record.parameters_json:
+            try:
+                import json
+                params = json.loads(record.parameters_json)
+                if isinstance(params, dict) and params.get("original_english"):
+                    translated = params["original_english"]
+                else:
+                    translated = translate_deliverable_to_language(
+                        text=content,
+                        target_language="English",
+                        platform_key=platform_key,
+                    )
+            except Exception:
+                translated = translate_deliverable_to_language(
+                    text=content,
+                    target_language="English",
+                    platform_key=platform_key,
+                )
+        else:
+            translated = translate_deliverable_to_language(
+                text=content,
+                target_language="English",
+                platform_key=platform_key,
+            )
+    else:
+        # Cache original_english before translating into Hindi/Telugu if not yet set
+        if record:
+            try:
+                import json
+                params = json.loads(record.parameters_json) if record.parameters_json else {}
+                if isinstance(params, dict) and "original_english" not in params:
+                    params["original_english"] = content
+                    record.parameters_json = json.dumps(params)
+            except Exception:
+                pass
+
+        translated = translate_deliverable_to_language(
+            text=content,
+            target_language=target_lang,
+            platform_key=platform_key,
+        )
+
+    if record:
+        record.content = translated
+        db.commit()
+
+    return {
+        "translated_content": translated,
+        "target_language": target_lang,
+        "platform_key": platform_key,
+    }
 
 
 @router.post("/api/pipeline/scrape-link")

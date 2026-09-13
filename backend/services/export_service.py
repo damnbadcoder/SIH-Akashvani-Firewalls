@@ -15,6 +15,7 @@ for in-app provenance exploration and must not appear in customer deliverables.
 
 from __future__ import annotations
 
+import os
 import io
 import re
 import zipfile
@@ -126,7 +127,7 @@ def markdown_to_pdf_bytes(markdown_text: str, output_type: str = "") -> bytes:
     margin: 40pt 45pt;
   }}
   body {{
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: "NotoSansDevanagari", "NotoSansTelugu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 10.5pt;
     line-height: 1.55;
     color: #1e293b;
@@ -269,7 +270,9 @@ def markdown_to_pdf_bytes(markdown_text: str, output_type: str = "") -> bytes:
 """
 
     try:
-        story = pymupdf.Story(html=styled_html)
+        noto_dir = "/usr/share/fonts/noto"
+        archive = pymupdf.Archive(noto_dir) if os.path.isdir(noto_dir) else None
+        story = pymupdf.Story(html=styled_html, archive=archive)
 
         def rect_fn(rect_num, filled):
             mediabox = pymupdf.Rect(0, 0, 612, 792)  # Standard Letter

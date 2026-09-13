@@ -45,6 +45,11 @@ class DeliverableService:
                 readability = None
 
         # 1. Persist to PostgreSQL DeliverableRecord (update if exists for session and output_type)
+        orig_en = getattr(res, "original_english", None) or final_content
+        params_to_save = dict(parameters) if isinstance(parameters, dict) else {}
+        if "original_english" not in params_to_save and orig_en:
+            params_to_save["original_english"] = orig_en
+
         existing_deliv = (
             db.query(DeliverableRecord)
             .filter(
@@ -55,7 +60,7 @@ class DeliverableService:
         )
         if existing_deliv:
             existing_deliv.content = final_content
-            existing_deliv.parameters_json = json.dumps(parameters)
+            existing_deliv.parameters_json = json.dumps(params_to_save)
             existing_deliv.provenance_json = json.dumps(provenance)
             existing_deliv.verification_json = json.dumps(verification) if verification else None
             deliverable_record = existing_deliv
@@ -64,7 +69,7 @@ class DeliverableService:
                 session_id=session_id,
                 output_type=platform_key,
                 content=final_content,
-                parameters_json=json.dumps(parameters),
+                parameters_json=json.dumps(params_to_save),
                 provenance_json=json.dumps(provenance),
                 verification_json=json.dumps(verification) if verification else None,
             )
@@ -101,6 +106,7 @@ class DeliverableService:
             "verification": verification,
             "relinked_citations": relinked_citations,
             "readability": readability,
+            "original_english": orig_en,
             "deliverable_id": deliverable_record.id,
             "session_id": session_id,
         }

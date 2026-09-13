@@ -339,6 +339,12 @@ Return a valid JSON object exactly matching this schema:
             except Exception:
                 pass
 
+    target_lang = (
+        parameters.get("language")
+        or parameters.get("target_language")
+        or "English"
+    ).strip().title()
+
     if data is None:
         print("[final_post_pipeline] ⚠️ LLM deliverable generation unreached or failed. Using grounded approved draft fallback.")
         mock_res = get_mock_final_deliverable(platform_key, safe_draft)
@@ -348,7 +354,16 @@ Return a valid JSON object exactly matching this schema:
         mock_res.relinked_citations = [
             m.model_dump() if hasattr(m, "model_dump") else m for m in relink_logs
         ]
-        mock_res.readability = score_readability(mock_res.final_content, platform_key)
+        original_en = mock_res.final_content
+        mock_res.original_english = original_en
+        if target_lang in ("Hindi", "Telugu"):
+            mock_res.final_content = translate_deliverable_to_language(
+                text=mock_res.final_content,
+                target_language=target_lang,
+                platform_key=platform_key,
+                gemini_key=gemini_key,
+                groq_key=groq_key,
+            )
         return mock_res
 
     final_content = strip_preview_wrappers(data.get("final_content", safe_draft))
@@ -373,9 +388,25 @@ Return a valid JSON object exactly matching this schema:
             )
         )
 
+    # -------------------------------------------------------------------------
+    # PHASE 5.5: Language Localization (Target Language Update)
+    # The entire ingestion & review pipeline runs in English. If user requested
+    # an Indian language (Hindi or Telugu), the final deliverable is updated here.
+    # -------------------------------------------------------------------------
+    original_english = final_content
+    if target_lang in ("Hindi", "Telugu"):
+        final_content = translate_deliverable_to_language(
+            text=final_content,
+            target_language=target_lang,
+            platform_key=platform_key,
+            gemini_key=gemini_key,
+            groq_key=groq_key,
+        )
+
     return FinalDeliverableResult(
         platform_key=platform_key,
         final_content=final_content,
+        original_english=original_english,
         provenance=provenance_list,
         verification=verification_report,
         relinked_citations=[
@@ -383,3 +414,302 @@ Return a valid JSON object exactly matching this schema:
         ],
         readability=readability_report,
     )
+
+
+def translate_deliverable_to_language(
+    text: str,
+    target_language: str,
+    platform_key: str = "default",
+    gemini_key: str = "",
+    groq_key: str = "",
+) -> str:
+    """
+    Translates a final deliverable from English into an Indian language (Hindi or Telugu) or back to English.
+    Strictly preserves:
+    - Technical identifiers (CVEs, IP addresses, domains, ports, hashes, protocols, tool names) in Latin script.
+    - Citation markers ([^src-1], [^src-2], [^aud-1], [^vid-1], [^doc-1], etc.)
+    - Markdown structure, headings (#, ##), bullet points, blockquotes, and tables.
+    """
+    if not text or not target_language:
+        return text
+
+    target_lang = target_language.strip().title()
+    if target_lang not in ("Hindi", "Telugu", "English"):
+        return text
+
+    has_devanagari = any("\u0900" <= ch <= "\u097f" for ch in text)
+    has_telugu = any("\u0c00" <= ch <= "\u0c7f" for ch in text)
+
+    # If target is English and text has no Indic characters, it is already English
+    if target_lang == "English" and not has_devanagari and not has_telugu:
+        return text
+
+    if target_lang == "English":
+        system_instruction = (
+            "You are an expert bilingual cybersecurity technical writer. "
+            "Translate the provided cybersecurity document from Hindi/Telugu back into clear, authoritative English. "
+            "MANDATORY REQUIREMENTS:\n"
+            "1. Keep technical identifiers: Keep all CVEs (e.g. CVE-2026-41822), IP addresses (e.g. 192.168.1.100), domain names, URLs, port numbers, hashes, protocol names (CAN bus, TCP/IP, SSH, TLS), and product/company names in Latin characters exactly as written.\n"
+            "2. DO NOT alter or remove citations: Retain all citation markers like [^src-1], [^src-2], [^aud-1], [^vid-1], [^doc-1] exactly in place.\n"
+            "3. Retain exact Markdown formatting: Keep headings (#, ##), bullet points (*, -), bold text (**), blockquotes (>), and tables.\n"
+            "4. Output ONLY the translated Markdown text without conversational filler, preamble, or code fences."
+        )
+        prompt = f"Translate the following cybersecurity deliverable back into natural, authoritative English:\n\n{text}"
+    else:
+        system_instruction = (
+            f"You are an expert bilingual cybersecurity technical writer. "
+            f"Translate the provided cybersecurity document into natural, authoritative {target_lang}. "
+            f"MANDATORY REQUIREMENTS:\n"
+            f"1. DO NOT translate technical identifiers: Keep all CVEs (e.g. CVE-2026-41822), IP addresses (e.g. 192.168.1.100), domain names, URLs, port numbers, hashes, protocol names (CAN bus, TCP/IP, SSH, TLS), and product/company names (BankShield, Linux, CERT-In) in Latin characters exactly as written.\n"
+            f"2. DO NOT translate or remove citations: Retain all citation markers like [^src-1], [^src-2], [^aud-1], [^vid-1], [^doc-1] exactly in place.\n"
+            f"3. Retain exact Markdown formatting: Keep headings (#, ##), bullet points (*, -), bold text (**), blockquotes (>), and tables.\n"
+            f"4. Output ONLY the translated Markdown text without conversational filler, preamble, or code fences."
+        )
+        prompt = f"Translate the following cybersecurity deliverable into natural, fluent {target_lang}:\n\n{text}"
+
+    # Try Groq (ultra fast and active)
+    if not groq_key:
+        groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if groq_key and Groq:
+        groq_candidates = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "groq/compound"]
+        try:
+            gclient = Groq(api_key=groq_key)
+            for g_m in groq_candidates:
+                try:
+                    resp = gclient.chat.completions.create(
+                        model=g_m,
+                        messages=[
+                            {"role": "system", "content": system_instruction},
+                            {"role": "user", "content": prompt},
+                        ],
+                        max_tokens=1500,
+                        temperature=0.2,
+                    )
+                    translated = (resp.choices[0].message.content or "").strip()
+                    if translated:
+                        if translated.startswith("```markdown") and translated.endswith("```"):
+                            translated = translated[11:-3].strip()
+                        elif translated.startswith("```") and translated.endswith("```"):
+                            translated = translated[3:-3].strip()
+                        print(f"[final_post_pipeline] ✅ Translated deliverable to {target_lang} using Groq '{g_m}'.")
+                        return translated
+                except Exception as ex:
+                    print(f"[final_post_pipeline] ⚠️ Groq translation model '{g_m}' failed: {ex}")
+        except Exception as ex:
+            print(f"[final_post_pipeline] ⚠️ Failed Groq client for translation: {ex}")
+
+    # Try Gemini
+    if not gemini_key:
+        gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if gemini_key and genai:
+        gemini_candidates = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]
+        try:
+            client = genai.Client(api_key=gemini_key)
+            for g_m in gemini_candidates:
+                try:
+                    cfg = genai_types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.2,
+                    ) if genai_types else {}
+                    resp = client.models.generate_content(
+                        model=g_m,
+                        contents=prompt,
+                        config=cfg,
+                    )
+                    translated = (resp.text or "").strip()
+                    if translated:
+                        if translated.startswith("```markdown") and translated.endswith("```"):
+                            translated = translated[11:-3].strip()
+                        elif translated.startswith("```") and translated.endswith("```"):
+                            translated = translated[3:-3].strip()
+                        print(f"[final_post_pipeline] ✅ Translated deliverable to {target_lang} using Gemini '{g_m}'.")
+                        return translated
+                except Exception as ex:
+                    print(f"[final_post_pipeline] ⚠️ Gemini translation model '{g_m}' failed: {ex}")
+        except Exception as ex:
+            print(f"[final_post_pipeline] ⚠️ Failed Gemini client for translation: {ex}")
+
+    # Deterministic Indic localization fallback
+    return _apply_indic_fallback_translation(text, target_lang)
+
+
+def _apply_indic_fallback_translation(text: str, target_language: str) -> str:
+    """Deterministic localization dictionary for common cybersecurity phrases in Hindi and Telugu."""
+    if target_language == "Hindi":
+        replacements = [
+            ("TECHNICAL SECURITY ADVISORY", "तकनीकी सुरक्षा परामर्श"),
+            ("Technical Security Advisory", "तकनीकी सुरक्षा परामर्श"),
+            ("EXECUTIVE INTELLIGENCE SUMMARY", "कार्यकारी खुफिया सारांश"),
+            ("Executive Intelligence Summary", "कार्यकारी खुफिया सारांश"),
+            ("CYBERSECURITY INCIDENT REPORT", "साइबर सुरक्षा घटना रिपोर्ट"),
+            ("Cybersecurity Incident Report", "साइबर सुरक्षा घटना रिपोर्ट"),
+            ("PUBLIC SECURITY STATEMENT", "सार्वजनिक सुरक्षा वक्तव्य"),
+            ("Public Security Statement", "सार्वजनिक सुरक्षा वक्तव्य"),
+            ("REMEDIATION & INCIDENT PLAYBOOK", "उपचार और घटना प्लेबुक"),
+            ("Remediation & Incident Playbook", "उपचार और घटना प्लेबुक"),
+            ("EXECUTIVE BRIEFING SLIDE DECK", "कार्यकारी ब्रीफिंग स्लाइड डेक"),
+            ("Executive Briefing Slide Deck", "कार्यकारी ब्रीफिंग स्लाइड डेक"),
+            ("AUDIO & VIDEO BRIEFING SCRIPT", "ऑडियो और वीडियो ब्रीफिंग स्क्रिप्ट"),
+            ("Audio & Video Briefing Script", "ऑडियो और वीडियो ब्रीफिंग स्क्रिप्ट"),
+            ("TRAFFIC LIGHT PROTOCOL", "ट्रैफिक लाइट प्रोटोकॉल"),
+            ("SEVERITY", "गंभीरता"),
+            ("CRITICAL", "गंभीर"),
+            ("HIGH", "उच्च"),
+            ("MEDIUM", "मध्यम"),
+            ("LOW", "कम"),
+            ("Key Findings", "मुख्य निष्कर्ष"),
+            ("Incident Summary", "घटना सारांश"),
+            ("Threat Assessment", "जोखिम मूल्यांकन"),
+            ("Immediate Actions Required", "तत्काल आवश्यक कार्रवाइयां"),
+            ("Immediate Remediation Steps", "तत्काल उपचार के कदम"),
+            ("Remediation Steps", "उपचार के कदम"),
+            ("Technical Mitigations", "तकनीकी शमन उपाय"),
+            ("Target Audience", "लक्षित पाठक"),
+            ("Published By", "प्रकाशक"),
+            ("Actionable Guidance", "कार्रवाई योग्य मार्गदर्शन"),
+            ("Blast Radius & Impact", "प्रभाव और फैलाव"),
+            ("Takeaways & Next Steps", "निष्कर्ष और अगले कदम"),
+            ("Entry Vector", "प्रवेश माध्यम"),
+            ("Lateral Infiltration", "आंतरिक घुसपैठ"),
+            ("Access Risk", "पहुंच जोखिम"),
+            ("Threat Alert", "सुरक्षा चेतावनी"),
+            ("Urgent Directive", "तत्काल निर्देश"),
+            ("Security Leaders", "सुरक्षा प्रमुख"),
+            ("Enterprise Infrastructure", "उद्यम बुनियादी ढांचा"),
+        ]
+    elif target_language == "Telugu":
+        replacements = [
+            ("TECHNICAL SECURITY ADVISORY", "సాంకేతిక భద్రతా సలహా"),
+            ("Technical Security Advisory", "సాంకేతిక భద్రతా సలహా"),
+            ("EXECUTIVE INTELLIGENCE SUMMARY", "కార్యనిర్వాహక భద్రతా సారాంశం"),
+            ("Executive Intelligence Summary", "కార్యనిర్వాహక భద్రతా సారాంశం"),
+            ("CYBERSECURITY INCIDENT REPORT", "సైబర్ భద్రతా సంఘటన నివేదిక"),
+            ("Cybersecurity Incident Report", "సైబర్ భద్రతా సంఘటన నివేదిక"),
+            ("PUBLIC SECURITY STATEMENT", "ప్రజా భద్రతా ప్రకటన"),
+            ("Public Security Statement", "ప్రజా భద్రతా ప్రకటన"),
+            ("REMEDIATION & INCIDENT PLAYBOOK", "పరిష్కార & సంఘటన ప్లేబుక్"),
+            ("Remediation & Incident Playbook", "పరిష్కార & సంఘటన ప్లేబుక్"),
+            ("EXECUTIVE BRIEFING SLIDE DECK", "కార్యనిర్వాహక బ్రీఫింగ్ స్లైడ్ డెక్"),
+            ("Executive Briefing Slide Deck", "కార్యనిర్వాహక బ్రీఫింగ్ స్లైడ్ డెక్"),
+            ("AUDIO & VIDEO BRIEFING SCRIPT", "ఆడియో మరియు వీడియో బ్రీఫింగ్ స్క్రిప్ట్"),
+            ("Audio & Video Briefing Script", "ఆడియో మరియు వీడియో బ్రీఫింగ్ స్క్రిప్ట్"),
+            ("TRAFFIC LIGHT PROTOCOL", "ట్రాఫిక్ లైట్ ప్రోటోకాల్"),
+            ("SEVERITY", "తీవ్రత"),
+            ("CRITICAL", "కీలకమైనది"),
+            ("HIGH", "అధికం"),
+            ("MEDIUM", "మధ్యస్థం"),
+            ("LOW", "తక్కువ"),
+            ("Key Findings", "ముఖ్యమైన గమనింపులు"),
+            ("Incident Summary", "సంఘటన సారాంశం"),
+            ("Threat Assessment", "ముప్పు అంచనా"),
+            ("Immediate Actions Required", "వెంటనే తీసుకోవాల్సిన చర్యలు"),
+            ("Immediate Remediation Steps", "తక్షణ పరిష్కార చర్యలు"),
+            ("Remediation Steps", "పరిష్కార చర్యలు"),
+            ("Technical Mitigations", "సాంకేతిక నివారణ చర్యలు"),
+            ("Target Audience", "లక్ష్య ప్రేక్షకులు"),
+            ("Published By", "ప్రచురణకర్త"),
+            ("Actionable Guidance", "ఆచరణాత్మక మార్గదర్శకత్వం"),
+            ("Blast Radius & Impact", "ప్రభావం మరియు పరిధి"),
+            ("Takeaways & Next Steps", "ముగింపు మరియు తదుపరి దశలు"),
+            ("Entry Vector", "ప్రవేశ మార్గం"),
+            ("Lateral Infiltration", "అంతర్గత వ్యాప్తి"),
+            ("Access Risk", "యాక్సెస్ ప్రమాదం"),
+            ("Threat Alert", "భద్రతా హెచ్చరిక"),
+            ("Urgent Directive", "తక్షణ ఆదేశం"),
+            ("Security Leaders", "భద్రతా నాయకులు"),
+            ("Enterprise Infrastructure", "సంస్థాగత మౌలిక సదుపాయాలు"),
+        ]
+    elif target_language == "English":
+        localized = text
+        for en, tr in [
+            ("TECHNICAL SECURITY ADVISORY", "సాంకేతిక భద్రతా సలహా"),
+            ("Technical Security Advisory", "సాంకేతిక భద్రతా సలహా"),
+            ("EXECUTIVE INTELLIGENCE SUMMARY", "కార్యనిర్వాహక భద్రతా సారాంశం"),
+            ("Executive Intelligence Summary", "కార్యనిర్వాహక భద్రతా సారాంశం"),
+            ("CYBERSECURITY INCIDENT REPORT", "సైబర్ భద్రతా సంఘటన నివేదిక"),
+            ("Cybersecurity Incident Report", "సైబర్ భద్రతా సంఘటన నివేదిక"),
+            ("PUBLIC SECURITY STATEMENT", "ప్రజా భద్రతా ప్రకటన"),
+            ("Public Security Statement", "ప్రజా భద్రతా ప్రకటన"),
+            ("REMEDIATION & INCIDENT PLAYBOOK", "పరిష్కార & సంఘటన ప్లేబుక్"),
+            ("Remediation & Incident Playbook", "పరిష్కార & సంఘటన ప్లేబుక్"),
+            ("EXECUTIVE BRIEFING SLIDE DECK", "కార్యనిర్వాహక బ్రీఫింగ్ స్లైడ్ డెక్"),
+            ("Executive Briefing Slide Deck", "కార్యనిర్వాహక బ్రీఫింగ్ స్లైడ్ డెక్"),
+            ("AUDIO & VIDEO BRIEFING SCRIPT", "ఆడియో మరియు వీడియో బ్రీఫింగ్ స్క్రిప్ట్"),
+            ("Audio & Video Briefing Script", "ఆడియో మరియు వీడియో బ్రీఫింగ్ స్క్రిప్ట్"),
+            ("TRAFFIC LIGHT PROTOCOL", "ట్రాఫిక్ లైట్ ప్రోటోకాల్"),
+            ("SEVERITY", "తీవ్రత"),
+            ("CRITICAL", "కీలకమైనది"),
+            ("HIGH", "అధికం"),
+            ("MEDIUM", "మధ్యస్థం"),
+            ("LOW", "తక్కువ"),
+            ("Key Findings", "ముఖ్యమైన గమనింపులు"),
+            ("Incident Summary", "సంఘటన సారాంశం"),
+            ("Threat Assessment", "ముప్పు అంచనా"),
+            ("Immediate Actions Required", "వెంటనే తీసుకోవాల్సిన చర్యలు"),
+            ("Immediate Remediation Steps", "తక్షణ పరిష్కార చర్యలు"),
+            ("Remediation Steps", "పరిష్కార చర్యలు"),
+            ("Technical Mitigations", "సాంకేతిక నివారణ చర్యలు"),
+            ("Target Audience", "లక్ష్య ప్రేక్షకులు"),
+            ("Published By", "ప్రచురణకర్త"),
+            ("Actionable Guidance", "ఆచరణాత్మక మార్గదర్శకత్వం"),
+            ("Blast Radius & Impact", "ప్రభావం మరియు పరిధి"),
+            ("Takeaways & Next Steps", "ముగింపు మరియు తదుపరి దశలు"),
+            ("Entry Vector", "ప్రవేశ మార్గం"),
+            ("Lateral Infiltration", "అంతర్గత వ్యాప్తి"),
+            ("Access Risk", "యాక్సెస్ ప్రమాదం"),
+            ("Threat Alert", "భద్రతా హెచ్చరిక"),
+            ("Urgent Directive", "తక్షణ ఆదేశం"),
+            ("Security Leaders", "భద్రతా నాయకులు"),
+            ("Enterprise Infrastructure", "సంస్థాగత మౌలిక సదుపాయాలు"),
+        ]:
+            localized = localized.replace(tr, en)
+        for en, tr in [
+            ("TECHNICAL SECURITY ADVISORY", "तकनीकी सुरक्षा परामर्श"),
+            ("Technical Security Advisory", "तकनीकी सुरक्षा परामर्श"),
+            ("EXECUTIVE INTELLIGENCE SUMMARY", "कार्यकारी खुफिया सारांश"),
+            ("Executive Intelligence Summary", "कार्यकारी खुफिया सारांश"),
+            ("CYBERSECURITY INCIDENT REPORT", "साइबर सुरक्षा घटना रिपोर्ट"),
+            ("Cybersecurity Incident Report", "साइबर सुरक्षा घटना रिपोर्ट"),
+            ("PUBLIC SECURITY STATEMENT", "सार्वजनिक सुरक्षा वक्तव्य"),
+            ("Public Security Statement", "सार्वजनिक सुरक्षा वक्तव्य"),
+            ("REMEDIATION & INCIDENT PLAYBOOK", "उपचार और घटना प्लेबुक"),
+            ("Remediation & Incident Playbook", "उपचार और घटना प्लेबुक"),
+            ("EXECUTIVE BRIEFING SLIDE DECK", "कार्यकारी ब्रीफिंग स्लाइड डेक"),
+            ("Executive Briefing Slide Deck", "कार्यकारी ब्रीफिंग स्लाइड डेक"),
+            ("AUDIO & VIDEO BRIEFING SCRIPT", "ऑडियो और वीडियो ब्रीफिंग स्क्रिप्ट"),
+            ("Audio & Video Briefing Script", "ऑडियो और वीडियो ब्रीफिंग स्क्रिप्ट"),
+            ("TRAFFIC LIGHT PROTOCOL", "ट्रैफिक लाइट प्रोटोकॉल"),
+            ("SEVERITY", "गंभीरता"),
+            ("CRITICAL", "गंभीर"),
+            ("HIGH", "उच्च"),
+            ("MEDIUM", "मध्यम"),
+            ("LOW", "कम"),
+            ("Key Findings", "मुख्य निष्कर्ष"),
+            ("Incident Summary", "घटना सारांश"),
+            ("Threat Assessment", "जोखिम मूल्यांकन"),
+            ("Immediate Actions Required", "तत्काल आवश्यक कार्रवाइयां"),
+            ("Immediate Remediation Steps", "तत्काल उपचार के कदम"),
+            ("Remediation Steps", "उपचार के कदम"),
+            ("Technical Mitigations", "तकनीकी शमन उपाय"),
+            ("Target Audience", "लक्षित पाठक"),
+            ("Published By", "प्रकाशक"),
+            ("Actionable Guidance", "कार्रवाई योग्य मार्गदर्शन"),
+            ("Blast Radius & Impact", "प्रभाव और फैलाव"),
+            ("Takeaways & Next Steps", "निष्कर्ष और अगले कदम"),
+            ("Entry Vector", "प्रवेश माध्यम"),
+            ("Lateral Infiltration", "आंतरिक घुसपैठ"),
+            ("Access Risk", "पहुंच जोखिम"),
+            ("Threat Alert", "सुरक्षा चेतावनी"),
+            ("Urgent Directive", "तत्काल निर्देश"),
+            ("Security Leaders", "सुरक्षा प्रमुख"),
+            ("Enterprise Infrastructure", "उद्यम बुनियादी ढांचा"),
+        ]:
+            localized = localized.replace(tr, en)
+        return localized
+    else:
+        return text
+
+    localized = text
+    for en, tr in replacements:
+        localized = localized.replace(en, tr)
+    return localized
