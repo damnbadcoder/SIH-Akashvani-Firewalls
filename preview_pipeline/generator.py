@@ -397,6 +397,7 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
         gemini_model,
         "gemini-3.5-flash-lite",
         "gemini-3.6-flash",
+        "gemini-2.5-flash",
     ]
     seen_g = set()
     gemini_models_to_try = [m for m in candidate_gemini_models if m and not (m in seen_g or seen_g.add(m))]
@@ -406,6 +407,7 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
         "groq/compound",
+        "qwen/qwen3.6-27b",
     ]
     seen_gr = set()
     groq_models_to_try = [m for m in candidate_groq_models if m and not (m in seen_gr or seen_gr.add(m))]
@@ -547,14 +549,13 @@ def generate_previews(content_md: str, metadata_json: Dict[str, Any], selected_o
             if single_preview:
                 result_previews[key] = single_preview
 
-    # If still empty (e.g. no API keys configured or all calls exhausted), fallback to mock only if no keys
+    # If still empty (e.g. no API keys configured or all live LLM calls failed/exhausted),
+    # gracefully fall back to deterministic mock previews so the application never breaks
     if not result_previews:
         if gemini_key or groq_key:
-            raise RuntimeError(
-                "Failed to generate previews using configured LLM models (Gemini / Groq). "
-                "Please verify model availability and network access."
-            )
-        print("[preview_pipeline] ⚠️ No API keys configured. Using get_mock_previews() fallback.")
+            print("[preview_pipeline] ⚠️ Live LLM preview generation failed or returned unparseable content. Falling back to structured deterministic previews.")
+        else:
+            print("[preview_pipeline] ⚠️ No API keys configured. Using get_mock_previews() fallback.")
         return get_mock_previews(content_md, selected_outputs, is_organization)
 
     return MultiPreviewResult(

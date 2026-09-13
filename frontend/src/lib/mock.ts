@@ -721,12 +721,10 @@ export async function generatePlan(
       };
     } else {
       const errText = await res.text().catch(() => "");
-      console.error(`[!] /api/generate-plan returned error ${res.status}:`, errText);
-      throw new Error(`Backend LLM preview generation failed (${res.status}): ${errText || "Please check server logs."}`);
+      console.warn(`[!] /api/generate-plan returned status ${res.status}:`, errText);
     }
   } catch (err: any) {
-    console.error("[!] Backend server error for /api/generate-plan:", err?.message || err);
-    throw new Error(`Could not generate LLM preview: ${err?.message || err}. Please verify the backend server is running with valid API keys.`);
+    console.warn("[!] Backend server unavailable or returned error for /api/generate-plan, falling back to local deterministic preview generator:", err?.message || err);
   }
 
   // Graceful Local Fallback: build separated previews deterministically

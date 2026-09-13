@@ -28,7 +28,7 @@ def get_engine():
         )
         sqlite_engine = create_engine(
             settings.SQLITE_FALLBACK_URL,
-            connect_args={"check_same_thread": False},
+            connect_args={"check_same_thread": False, "timeout": 30},
         )
         return sqlite_engine, settings.SQLITE_FALLBACK_URL
 

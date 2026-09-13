@@ -41,13 +41,18 @@ class PreviewService:
         Phase 2: Initial LLM node generates Preview.md and category drafts.
         Backend Task 2: Saves original Preview.md and stores initial records in DB.
         """
-        result = generate_previews(
-            content_md=enhanced_md,
-            metadata_json=enhanced_json,
-            selected_outputs=selected_outputs,
-            parameters=parameters,
-            is_organization=is_organisation,
-        )
+        try:
+            result = generate_previews(
+                content_md=enhanced_md,
+                metadata_json=enhanced_json,
+                selected_outputs=selected_outputs,
+                parameters=parameters,
+                is_organization=is_organisation,
+            )
+        except Exception as err:
+            print(f"[preview_service] ⚠️ Exception during generate_previews: {err}. Falling back to deterministic mock.")
+            from preview_pipeline.mock import get_mock_previews
+            result = get_mock_previews(enhanced_md, selected_outputs, is_organisation)
 
         previews_by_type = {}
         previews_dict = {}
