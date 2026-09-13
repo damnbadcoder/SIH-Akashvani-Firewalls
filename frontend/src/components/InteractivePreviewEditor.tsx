@@ -34,9 +34,9 @@ export default function InteractivePreviewEditor({
   highlightedCitationId,
   focusedOccurrenceIndex = 0,
   totalOccurrences = 0,
-  onNextOccurrence,
-  onPrevOccurrence,
-  onClearCitation,
+  onNextOccurrence: _onNextOccurrence,
+  onPrevOccurrence: _onPrevOccurrence,
+  onClearCitation: _onClearCitation,
 }: InteractivePreviewEditorProps) {
   const [activeFlagId, setActiveFlagId] = useState<string | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
@@ -369,53 +369,7 @@ export default function InteractivePreviewEditor({
         </div>
       )}
 
-      {/* Bidirectional Occurrence Navigation Bar */}
-      {viewMode === "preview" && highlightedCitationId && (
-        <div className="bidirectional-nav-bar">
-          <div className="nav-bar-info">
-            <span className="nav-bar-badge">[^{highlightedCitationId}]</span>
-            <span className="nav-bar-label">
-              {totalOccurrences && totalOccurrences > 1
-                ? `Referenced in ${totalOccurrences} places · Claim ${(focusedOccurrenceIndex ?? 0) + 1} of ${totalOccurrences}`
-                : totalOccurrences === 1
-                ? "Referenced in 1 claim sentence"
-                : "Active Evidence Citation"}
-            </span>
-          </div>
-          <div className="nav-bar-actions">
-            {totalOccurrences && totalOccurrences > 1 && (
-              <>
-                <button
-                  type="button"
-                  className="ghost sm nav-cycle-btn"
-                  onClick={onPrevOccurrence}
-                  title="Jump to previous referencing claim"
-                >
-                  ◀ Prev
-                </button>
-                <button
-                  type="button"
-                  className="ghost sm nav-cycle-btn"
-                  onClick={onNextOccurrence}
-                  title="Jump to next referencing claim"
-                >
-                  Next ▶
-                </button>
-              </>
-            )}
-            {onClearCitation && (
-              <button
-                type="button"
-                className="ghost sm nav-clear-btn"
-                onClick={onClearCitation}
-                title="Clear citation highlight"
-              >
-                ✕ Clear
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+
 
       {/* Editor or Preview Pane */}
       {viewMode === "edit" ? (

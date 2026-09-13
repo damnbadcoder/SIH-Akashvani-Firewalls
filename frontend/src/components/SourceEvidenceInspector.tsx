@@ -39,19 +39,6 @@ export default function SourceEvidenceInspector({
   const [selectedBoxItem, setSelectedBoxItem] = useState<DetectedBoxItem | null>(null);
   const leftPaneScrollRef = useRef<HTMLDivElement>(null);
 
-  // Filter evidence cards
-  const filteredEvidence = useMemo(() => {
-    if (!filterQuery.trim()) return evidenceItems;
-    const q = filterQuery.toLowerCase();
-    return evidenceItems.filter(
-      (item) =>
-        item.citationId.toLowerCase().includes(q) ||
-        item.title.toLowerCase().includes(q) ||
-        item.content.toLowerCase().includes(q) ||
-        (item.timestamp && item.timestamp.toLowerCase().includes(q))
-    );
-  }, [evidenceItems, filterQuery]);
-
   // Scroll to active card when highlightedCitationId changes externally
   useEffect(() => {
     if (!highlightedCitationId || sourceViewMode !== "cards") return;
@@ -65,11 +52,25 @@ export default function SourceEvidenceInspector({
     }
   }, [highlightedCitationId, sourceViewMode]);
 
+  // Filter evidence cards
+  const filteredEvidence = useMemo(() => {
+    if (!filterQuery.trim()) return evidenceItems;
+    const q = filterQuery.toLowerCase();
+    return evidenceItems.filter(
+      (item) =>
+        item.citationId.toLowerCase().includes(q) ||
+        item.title.toLowerCase().includes(q) ||
+        item.content.toLowerCase().includes(q) ||
+        item.meta?.toLowerCase().includes(q) ||
+        item.sourceUrl?.toLowerCase().includes(q)
+    );
+  }, [evidenceItems, filterQuery]);
+
   return (
-    <div className="source-inspector-wrapper">
-      {/* View Mode Segmented Controls */}
-      <div className="source-view-controls">
-        <div className="segmented mode-switcher">
+    <div className="source-evidence-inspector">
+      {/* Evidence View Mode Switcher */}
+      <div className="inspector-header">
+        <div className="segmented full">
           <button
             type="button"
             className={sourceViewMode === "cards" ? "on" : ""}
@@ -84,13 +85,6 @@ export default function SourceEvidenceInspector({
             title="Visual OCR Bounding Box Grounding"
           >
             🖼️ Visual Canvas ({visualEvidenceItems.length})
-          </button>
-          <button
-            type="button"
-            className={sourceViewMode === "raw" ? "on" : ""}
-            onClick={() => onViewModeChange("raw")}
-          >
-            📄 Raw Markdown
           </button>
         </div>
       </div>
@@ -160,23 +154,7 @@ export default function SourceEvidenceInspector({
             </div>
           </div>
 
-          {/* Active Highlight Citation Info Banner */}
-          {highlightedCitationId && (
-            <div className="visual-citation-banner">
-              <div className="banner-badge-group">
-                <span className="highlight-pill">[^{highlightedCitationId}]</span>
-                <span className="highlight-title">Active Grounding Citation</span>
-              </div>
-              <button
-                type="button"
-                className="ghost sm jump-to-claim-btn"
-                onClick={() => onSelectEvidence(highlightedCitationId)}
-                title="Scroll right pane to matching claim sentence"
-              >
-                📍 Jump to Claim in Deliverable →
-              </button>
-            </div>
-          )}
+
 
           {/* Interactive Image & Bounding Box Viewport */}
           <div className="visual-stage-viewport slim-scroll">
@@ -297,7 +275,7 @@ export default function SourceEvidenceInspector({
             </div>
           )}
         </div>
-      ) : sourceViewMode === "cards" ? (
+      ) : (
         <>
           {/* Evidence Filter Bar */}
           <div className="source-search-bar">
@@ -338,13 +316,13 @@ export default function SourceEvidenceInspector({
                     key={item.citationId}
                     id={`source-${item.citationId.toLowerCase()}`}
                     data-source-id={item.citationId}
-                    className={`source-evidence-card ${isSelected ? "source-card-selected-active" : ""}`}
+                    className="source-evidence-card"
                     onClick={() => onSelectEvidence(item.citationId)}
                   >
                     <div className="evidence-card-header">
                       <div className="evidence-tag-group">
                         <span
-                          className={`citation-anchor-badge ${isSelected ? "badge-active" : ""}`}
+                          className="citation-anchor-badge"
                           title="Click to jump to claim in deliverable"
                         >
                           [^{item.citationId}]
@@ -433,11 +411,6 @@ export default function SourceEvidenceInspector({
             )}
           </div>
         </>
-      ) : (
-        /* Raw Grounding Markdown View */
-        <div className="raw-grounding-container slim-scroll">
-          <Markdown content={groundingMd || sourceText || "No grounding context extracted."} />
-        </div>
       )}
     </div>
   );

@@ -51,7 +51,7 @@ export default function ReviewWorkspace({
   onViewModeChange,
   onContentChange,
   onFlagsChange,
-  onToggleOrganisationMode,
+  onToggleOrganisationMode: _onToggleOrganisationMode,
   onRerunProofcheck,
   onFinalizeGeneration,
   onBackToParameters,
@@ -60,8 +60,8 @@ export default function ReviewWorkspace({
   const [mobileTab, setMobileTab] = useState<"preview" | "source">("preview");
   // Filter query in source inspector
   const [filterQuery, setFilterQuery] = useState("");
-  // View mode in left pane ('cards' | 'visual' | 'raw')
-  const [sourceViewMode, setSourceViewMode] = useState<"cards" | "visual" | "raw">("cards");
+  // View mode in left pane ('cards' | 'visual')
+  const [sourceViewMode, setSourceViewMode] = useState<"cards" | "visual">("cards");
   // Active visual item being inspected in image viewer
   const [activeVisualEvidence, setActiveVisualEvidence] = useState<EvidenceCardItem | null>(null);
   // Active highlighted bounding box citation ID (e.g. 'src-2', 'img-1')
@@ -171,10 +171,6 @@ export default function ReviewWorkspace({
 
       if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "center" });
-        target.classList.add("source-card-highlighted");
-        setTimeout(() => {
-          target.classList.remove("source-card-highlighted");
-        }, 2000);
       }
     }, 80);
   }
@@ -331,24 +327,6 @@ export default function ReviewWorkspace({
               <strong>{currentPreviewId ? outputTypeLabel(currentPreviewId) : "deliverable"}</strong>
             </span>
             <div className="preview-actions">
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={isOrganisation ? "on" : ""}
-                  onClick={() => onToggleOrganisationMode(true)}
-                  title="Organisation mode with sensitive data proofchecking"
-                >
-                  🏢 Org
-                </button>
-                <button
-                  type="button"
-                  className={!isOrganisation ? "on" : ""}
-                  onClick={() => onToggleOrganisationMode(false)}
-                  title="Normal mode"
-                >
-                  👤 Normal
-                </button>
-              </div>
               <div className="segmented">
                 <button
                   type="button"

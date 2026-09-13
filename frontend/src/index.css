@@ -1574,25 +1574,10 @@ span[style*="color: red"],
   background: rgba(26, 31, 42, 0.8);
 }
 
-/* Highlight ring on citation click */
+/* Highlight ring on citation click - removed */
 .source-evidence-card.source-card-highlighted {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.45), 0 0 24px rgba(99, 102, 241, 0.35) !important;
-  animation: pulseHighlight 2s ease-out;
-}
-
-@keyframes pulseHighlight {
-  0% {
-    transform: scale(1.02);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.6), 0 0 28px rgba(99, 102, 241, 0.5);
-  }
-  40% {
-    transform: scale(1);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.45), 0 0 18px rgba(99, 102, 241, 0.3);
-  }
-  100% {
-    box-shadow: none;
-  }
+  border-color: var(--border);
+  box-shadow: none;
 }
 
 .evidence-card-header {
@@ -2734,43 +2719,21 @@ span[style*="color: red"],
 }
 
 .citation-claim-sentence:hover {
-  background: rgba(99, 102, 241, 0.1);
+  background: none;
 }
 
 .citation-claim-sentence.active-bidirectional-claim {
-  background: rgba(99, 102, 241, 0.18);
-  border-bottom: 2px solid #818cf8;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
-  animation: pulseActiveClaim 2.2s infinite ease-in-out;
+  background: none;
+  border-bottom: none;
+  box-shadow: none;
+  animation: none;
 }
 
 .citation-claim-sentence.focused-occurrence {
-  background: rgba(245, 158, 11, 0.22) !important;
-  border-bottom: 2px solid #f59e0b !important;
-  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35) !important;
-  animation: pulseFocusedClaim 1.8s infinite ease-in-out;
-}
-
-@keyframes pulseActiveClaim {
-  0%, 100% {
-    background-color: rgba(99, 102, 241, 0.14);
-    box-shadow: 0 0 6px rgba(99, 102, 241, 0.2);
-  }
-  50% {
-    background-color: rgba(99, 102, 241, 0.28);
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.4);
-  }
-}
-
-@keyframes pulseFocusedClaim {
-  0%, 100% {
-    background-color: rgba(245, 158, 11, 0.16);
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
-  }
-  50% {
-    background-color: rgba(245, 158, 11, 0.32);
-    box-shadow: 0 0 18px rgba(245, 158, 11, 0.5);
-  }
+  background: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  animation: none !important;
 }
 
 /* Citation Pill Buttons with bidirectional states */

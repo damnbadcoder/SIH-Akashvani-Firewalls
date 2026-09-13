@@ -120,7 +120,7 @@ export function annotateBidirectionalCitations(
         .join(" ");
 
       result += unhighlightedPrefix;
-      result += `<span class="${claimClassNames}" data-citation-ref="${cleanId}" data-occurrence-index="${occurrenceIndex}"><span class="claim-text">${claimText}</span><button type="button" class="${pillClassNames}" data-citation-id="${cleanId}" data-occurrence-index="${occurrenceIndex}" title="Citation [^${cleanId}] — Click to inspect source evidence"><span class="citation-icon">↗</span> [^${cleanId}]</button>${punctTrailing}</span>`;
+      result += `${claimText}<button type="button" class="citation-pill" data-citation-id="${cleanId}" data-occurrence-index="${occurrenceIndex}" title="Citation [^${cleanId}] — Click to inspect source evidence"><span class="citation-icon">↗</span> [^${cleanId}]</button>${punctTrailing}`;
 
       lastProcessedIdx = afterCitIdx + punctTrailing.length;
     }
@@ -313,4 +313,12 @@ export function buildEvidenceItems(
   }
 
   return items;
+}
+
+/**
+ * Strips citation references (e.g. [^src-1], [^img-2]) from text for clean final deliverables.
+ */
+export function stripCitations(text: string): string {
+  if (!text) return "";
+  return text.replace(/\s*\[\^[^\]]+\]/g, "");
 }
